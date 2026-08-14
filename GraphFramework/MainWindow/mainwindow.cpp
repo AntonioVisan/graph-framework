@@ -101,6 +101,9 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 		bool suprapunere = false;
 		for (const auto* n : nodes)
 		{
+			if (n == m_pressedNode)
+				continue;
+
 			if (abs(newX - n->getX()) < 20 && abs(newY - n->getY()) < 20)
 			{
 				suprapunere = true;
