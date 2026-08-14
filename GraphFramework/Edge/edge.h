@@ -3,7 +3,8 @@
 #include "../Node/node.h"
 class Edge
 {
-    Node *m_first, *m_second;
+    Node* m_first;
+    Node* m_second;
 public:
     Edge();
     Edge(Node* f, Node* s);
