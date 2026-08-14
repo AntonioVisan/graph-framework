@@ -39,4 +39,4 @@ Makefile
 # Temporary files
 *.tmp
 *.log
-*.bak
+*.bakadjacencyMatrix.txt
