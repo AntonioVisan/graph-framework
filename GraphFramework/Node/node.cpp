@@ -1,8 +1,12 @@
 #include "../Node/node.h"
 
-Node::Node(int index, QPoint p) : m_index(index), m_coord(p)
-{
-}
+Node::Node(int index, QPoint p)
+    : m_index(index),
+    m_coord(p),
+    m_row(0),
+    m_column(0),
+    m_color(QColor())
+{}
 
 void Node::setIndex(int index)
 {
@@ -12,6 +16,27 @@ void Node::setIndex(int index)
 void Node::setCoord(const QPoint& p)
 {
     m_coord = p;
+}
+
+void Node::setGridPos(int row, int column)
+{
+    m_row = row;
+    m_column = column;
+}
+
+void Node::setRow(int row)
+{
+    m_row = row;
+}
+
+void Node::setColumn(int column)
+{
+    m_column = column;
+}
+
+void Node::setColor(const QColor& color)
+{
+    m_color = color;
 }
 
 int Node::getIndex() const
@@ -32,4 +57,19 @@ int Node::getX() const
 int Node::getY() const
 {
     return m_coord.y();
+}
+
+int Node::getRow() const
+{
+    return m_row;
+}
+
+int Node::getColumn() const
+{
+    return m_column;
+}
+
+QColor Node::getColor() const
+{
+    return m_color;
 }
