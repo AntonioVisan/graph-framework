@@ -5,17 +5,21 @@
 
 class Edge
 {
-    Node* m_first;
-    Node* m_second;
+	Node* m_first;
+	Node* m_second;
+	int m_cost;
 
 public:
-    Edge();
-    Edge(Node* f, Node* s);
+	Edge();
+	Edge(Node* f, Node* s, int cost = 0);
 
-    bool equals(const Edge& other, bool oriented) const;
+	bool equals(const Edge& other, bool oriented) const;
 
-    Node* getFirst() const;
-    Node* getSecond() const;
+	void setCost(int cost);
+
+	Node* getFirst() const;
+	Node* getSecond() const;
+	int getCost() const;
 };
 
 #endif
