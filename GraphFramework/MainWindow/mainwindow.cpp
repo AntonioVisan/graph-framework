@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QInputDialog>
 
 MainWindow::MainWindow(QWidget* parent)
 	: QMainWindow(parent)
@@ -9,12 +10,23 @@ MainWindow::MainWindow(QWidget* parent)
 {
 	ui->setupUi(this);
 
+	m_weightedGraph.changeState();
+
 	// Navigation between application pages.
 	connect(ui->actionGraph, &QAction::triggered, this, [this]()
 		{
 			m_currentPage = Page::Graph;
 
 			ui->stackedWidget->setCurrentWidget(ui->graphPage);
+
+			update();
+		});
+
+	connect(ui->actionWeighted_Graph, &QAction::triggered, this, [this]()
+		{
+			m_currentPage = Page::WeightedGraph;
+
+			ui->stackedWidget->setCurrentWidget(ui->weightedGraphPage);
 
 			update();
 		});
@@ -41,6 +53,72 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 {
 	m_pressedNode = nullptr;
 
+	// Weighted Graph page.
+	if (m_currentPage == Page::WeightedGraph)
+	{
+		m_weightedPressedNode = nullptr;
+
+		if (m->button() == Qt::RightButton)
+		{
+			bool overlap = false;
+
+			std::vector<Node*> nodes = m_weightedGraph.getNodes();
+
+			for (auto* n : nodes)
+			{
+				if (abs(m->pos().x() - n->getX()) < 20 &&
+					abs(m->pos().y() - n->getY()) < 20)
+				{
+					overlap = true;
+					break;
+				}
+			}
+
+			if (!overlap)
+			{
+				m_weightedGraph.addNode(m->pos());
+				update();
+			}
+		}
+		else if (m->button() == Qt::LeftButton)
+		{
+			std::vector<Node*> nodes = m_weightedGraph.getNodes();
+			Node* selected = nullptr;
+
+			for (auto* n : nodes)
+			{
+				if (abs(m->pos().x() - n->getX()) < 10 &&
+					abs(m->pos().y() - n->getY()) < 10)
+				{
+					selected = n;
+					break;
+				}
+			}
+
+			if (selected != nullptr)
+			{
+				if (m_weightedFirstNode != nullptr &&
+					m_weightedFirstNode->getIndex() != selected->getIndex())
+				{
+					m_weightedGraph.addEdge(
+						m_weightedFirstNode,
+						selected
+					);
+
+					m_weightedFirstNode = nullptr;
+					update();
+				}
+				else
+				{
+					m_weightedFirstNode = selected;
+				}
+			}
+		}
+
+		return;
+	}
+
+	// Normal Graph page.
 	if (m_currentPage != Page::Graph)
 		return;
 
@@ -110,6 +188,44 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 void MainWindow::paintEvent(QPaintEvent*)
 {
 	QPainter p(this);
+	//Draw the weighted graph on the Weighted Graph page.
+	if (m_currentPage == Page::WeightedGraph)
+	{
+		std::vector<Node*> nodes = m_weightedGraph.getNodes();
+
+		for (const auto* n : nodes)
+		{
+			QRect r(
+				n->getX() - 10,
+				n->getY() - 10,
+				20,
+				20
+			);
+
+			QString s = QString::number(n->getIndex());
+
+			if (n->getColor().isValid())
+				p.setBrush(n->getColor());
+			else
+				p.setBrush(Qt::NoBrush);
+
+			p.drawEllipse(r);
+			p.drawText(r, Qt::AlignCenter, s);
+		}
+
+		std::vector<Edge> edges = m_weightedGraph.getEdges();
+
+		for (const auto& ed : edges)
+		{
+			QPoint firstNode = ed.getFirst()->getCoord();
+			QPoint secondNode = ed.getSecond()->getCoord();
+
+			p.drawLine(firstNode, secondNode);
+			drawArrow(p, firstNode, secondNode);
+		}
+
+		return;
+	}
 
 	// Draw the manually created graph on the Graph page.
 	if (m_currentPage == Page::Graph)
@@ -256,6 +372,55 @@ void MainWindow::paintEvent(QPaintEvent*)
 
 void MainWindow::mouseMoveEvent(QMouseEvent* m)
 {
+	if (m_currentPage == Page::WeightedGraph)
+	{
+		if (m_weightedPressedNode)
+		{
+			int margin = 10;
+			int newX = m->pos().x();
+			int newY = m->pos().y();
+
+			if (newX < margin)
+				newX = margin;
+
+			if (newX > width() - margin)
+				newX = width() - margin;
+
+			if (newY < margin)
+				newY = margin;
+
+			if (newY > height() - margin)
+				newY = height() - margin;
+
+			std::vector<Node*> nodes = m_weightedGraph.getNodes();
+
+			bool overlap = false;
+
+			for (auto* n : nodes)
+			{
+				if (n == m_weightedPressedNode)
+					continue;
+
+				if (abs(newX - n->getX()) < 20 &&
+					abs(newY - n->getY()) < 20)
+				{
+					overlap = true;
+					break;
+				}
+			}
+
+			if (!overlap)
+			{
+				m_weightedPressedNode->setCoord(
+					QPoint(newX, newY)
+				);
+
+				update();
+			}
+		}
+		return;
+	}
+
 	if (m_currentPage != Page::Graph)
 		return;
 
@@ -318,6 +483,25 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 
 void MainWindow::mousePressEvent(QMouseEvent* m)
 {
+	if (m_currentPage == Page::WeightedGraph)
+	{
+		if (m->button() == Qt::MiddleButton)
+		{
+			std::vector<Node*> nodes = m_weightedGraph.getNodes();
+
+			for (auto* n : nodes)
+			{
+				if (abs(m->pos().x() - n->getX()) < 10 &&
+					abs(m->pos().y() - n->getY()) < 10)
+				{
+					m_weightedPressedNode = n;
+					break;
+				}
+			}
+		}
+		return;
+	}
+
 	if (m_currentPage != Page::Graph)
 		return;
 
@@ -403,6 +587,283 @@ void MainWindow::on_directedRadioButton_toggled(bool checked)
 		m_manualGraph.changeState();
 		update();
 	}
+}
+
+void MainWindow::on_addEdgeWeightButton_clicked()
+{
+	if (m_weightedGraph.getNodes().size() < 2)
+	{
+		QMessageBox::information(
+			this,
+			"Add Edge Weight",
+			"There are not enough nodes to create an edge."
+		);
+		return;
+	}
+
+	bool ok;
+
+	int nodeCount =
+		static_cast<int>(m_weightedGraph.getNodes().size());
+
+	int start = QInputDialog::getInt(
+		this,
+		"Add Edge Weight",
+		"Start node index:",
+		0,
+		0,
+		nodeCount - 1,
+		1,
+		&ok
+	);
+
+	if (!ok)
+		return;
+
+	int end = QInputDialog::getInt(
+		this,
+		"Add Edge Weight",
+		"End node index:",
+		0,
+		0,
+		nodeCount - 1,
+		1,
+		&ok
+	);
+
+	if (!ok)
+		return;
+
+	int cost = QInputDialog::getInt(
+		this,
+		"Add Edge Weight",
+		"Edge weight:",
+		1,
+		1,
+		1000,
+		1,
+		&ok
+	);
+
+	if (!ok)
+		return;
+
+	std::vector<Node*> nodes = m_weightedGraph.getNodes();
+
+	Node* first = nodes[start];
+	Node* second = nodes[end];
+
+	Matrix adjacency = m_weightedGraph.getAdjacencyMatrix();
+
+	if (adjacency[start][end] == 0)
+	{
+		QMessageBox::information(
+			this,
+			"Add Edge Weight",
+			"The specified edge does not exist."
+		);
+		return;
+	}
+
+	m_weightedGraph.setEdgeCost(first, second, cost);
+
+	QMessageBox::information(
+		this,
+		"Add Edge Weight",
+		"The edge weight was added successfully."
+	);
+
+	update();
+}
+
+void MainWindow::on_showEdgeWeightsButton_clicked()
+{
+	if (m_weightedGraph.getEdges().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Edge Weights",
+			"This graph contains no edges."
+		);
+
+		return;
+	}
+
+	QString message = "Edge weights:\n";
+	bool edgeFound = false;
+
+	for (const auto& edge : m_weightedGraph.getEdges())
+	{
+		int cost = edge.getCost();
+
+		if (cost != 0)
+		{
+			int first = edge.getFirst()->getIndex();
+			int second = edge.getSecond()->getIndex();
+
+			message += QString(
+				"Edge (%1 -> %2): %3\n"
+			).arg(first).arg(second).arg(cost);
+
+			edgeFound = true;
+		}
+	}
+
+	if (!edgeFound)
+		message += "\nNo edge weights have been assigned.";
+
+	QMessageBox::information(
+		this,
+		"Edge Weights",
+		message
+	);
+}
+
+void MainWindow::on_findShortestPathsButton_clicked()
+{
+	if (m_weightedGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Shortest Paths",
+			"This graph contains no nodes."
+		);
+
+		return;
+	}
+
+	for (const auto& edge : m_weightedGraph.getEdges())
+	{
+		if (edge.getCost() == 0)
+		{
+			QMessageBox::warning(
+				this,
+				"Shortest Paths",
+				"All edges must have a weight before computing shortest paths."
+			);
+
+			return;
+		}
+	}
+
+	if (m_weightedGraph.hasCycle())
+	{
+		QMessageBox::warning(
+			this,
+			"Shortest Paths",
+			"The graph contains a cycle. "
+			"Shortest paths cannot be computed using the topological-order algorithm."
+		);
+
+		return;
+	}
+
+	bool ok;
+
+	int nodeCount =
+		static_cast<int>(m_weightedGraph.getNodes().size());
+
+	int start = QInputDialog::getInt(
+		this,
+		"Choose Source",
+		"Source node index:",
+		0,
+		0,
+		nodeCount - 1,
+		1,
+		&ok
+	);
+
+	if (!ok)
+		return;
+
+	Node* source = m_weightedGraph.getNodes()[start];
+
+	m_weightedGraph.findShortestPaths(source);
+
+	for (auto* node : m_weightedGraph.getNodes())
+	{
+		if (node == source)
+			continue;
+
+		m_weightedGraph.findPath(node);
+
+		std::vector<int> currentPath =
+			m_weightedGraph.getCurrentPath();
+
+		QString message = QString(
+			"Shortest path from %1 to %2:\n"
+		).arg(source->getIndex())
+			.arg(node->getIndex());
+
+		if (currentPath.empty())
+		{
+			message += "No path exists.";
+		}
+		else
+		{
+			for (int i = 0;
+				i < static_cast<int>(currentPath.size());
+				++i)
+			{
+				message += QString::number(currentPath[i]);
+
+				if (i != static_cast<int>(currentPath.size()) - 1)
+					message += " -> ";
+			}
+		}
+
+		QMessageBox::information(
+			this,
+			"Shortest Path",
+			message
+		);
+
+		m_weightedGraph.resetNodeColors();
+		update();
+	}
+}
+
+void MainWindow::on_topologicalSortButton_clicked()
+{
+	if (m_weightedGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Topological Sort",
+			"This graph contains no nodes."
+		);
+
+		return;
+	}
+
+	if (m_weightedGraph.hasCycle())
+	{
+		QMessageBox::warning(
+			this,
+			"Topological Sort",
+			"The graph contains a cycle. "
+			"Topological sorting is not possible."
+		);
+
+		return;
+	}
+
+	m_weightedGraph.topologicalSort();
+
+	QString message = "Topological order:\n";
+
+	for (int node : m_weightedGraph.getTopologicalOrder())
+	{
+		message += QString::number(node);
+		message += " ";
+	}
+
+	QMessageBox::information(
+		this,
+		"Topological Sort",
+		message
+	);
 }
 
 void MainWindow::on_openFileButton_clicked()

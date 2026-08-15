@@ -38,6 +38,12 @@ private slots:
 	void on_undirectedRadioButton_toggled(bool checked);
 	void on_directedRadioButton_toggled(bool checked);
 
+	// Weighted Graph
+	void on_addEdgeWeightButton_clicked();
+	void on_showEdgeWeightsButton_clicked();
+	void on_findShortestPathsButton_clicked();
+	void on_topologicalSortButton_clicked();
+
 	// Labyrinth
 	void on_openFileButton_clicked();
 	void on_findGraphPathsButton_clicked();
@@ -53,10 +59,14 @@ private:
 	Ui::MainWindow* ui;
 
 	Graph m_manualGraph;
+	Graph m_weightedGraph;
 	Graph m_labyrinthGraph;
 
 	Node* m_firstNode = nullptr;
 	Node* m_pressedNode = nullptr;
+
+	Node* m_weightedFirstNode = nullptr;
+	Node* m_weightedPressedNode = nullptr;
 
 	bool drawGraph = false;
     bool drawLabyrinth = false;
@@ -64,6 +74,7 @@ private:
 	enum class Page
 	{
 		Graph,
+		WeightedGraph,
 		Labyrinth
 	};
 

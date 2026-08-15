@@ -147,6 +147,60 @@
       </property>
      </widget>
     </widget>
+    <widget class="QWidget" name="weightedGraphPage">
+     <widget class="QPushButton" name="addEdgeWeightButton">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>360</y>
+        <width>111</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Add Edge Weight</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="showEdgeWeightsButton">
+      <property name="geometry">
+       <rect>
+        <x>210</x>
+        <y>360</y>
+        <width>121</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Show Edge Weights</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="findShortestPathsButton">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>360</y>
+        <width>111</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Find Shortest Paths</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="topologicalSortButton">
+      <property name="geometry">
+       <rect>
+        <x>680</x>
+        <y>360</y>
+        <width>101</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Topological Sort</string>
+      </property>
+     </widget>
+    </widget>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -170,6 +224,7 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionGraph"/>
+   <addaction name="actionWeighted_Graph"/>
    <addaction name="actionLabyrinth"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -184,6 +239,14 @@
   <action name="actionLabyrinth">
    <property name="text">
     <string>Labyrinth</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionWeighted_Graph">
+   <property name="text">
+    <string>Weighted Graph</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
