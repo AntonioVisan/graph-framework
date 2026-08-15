@@ -15,6 +15,7 @@ class Graph
     std::vector<Edge> m_edges;
     bool m_oriented=false;
     Matrix m_adjacencyMatrix;
+    Matrix m_costMatrix;
 
     std::vector<std::vector<int>> m_adjacencyList;
 
@@ -23,6 +24,8 @@ class Graph
     std::vector<Node*> m_exitNodes;
     std::vector<int> m_currentPath;
     std::vector<int> m_parent;
+    std::vector<int> m_distance;
+    std::vector<int> m_topologicalOrder;
 
     static const int cellSize = 50;
 
@@ -37,11 +40,17 @@ public:
     void addNode(QPoint p);
     void addNode(int row, int column, int value);
     void addEdge(Node* first, Node* second);
+    void setEdgeCost(Node* first, Node* second, int cost);
+    int getEdgeCost(Node* first, Node* second) const;
     void changeState();
 
     void readLabyrinth(Matrix& matrix, const std::string& filename);
     void constructLabyrinth(const Matrix& matrix);
     void breadthFirstSearch();
+    void depthFirstSearch();
+    bool hasCycle();
+    void topologicalSort();
+    void findShortestPaths(Node* source);
     void findPath(Node* exit);
 
     void resetNodeColors();
@@ -52,6 +61,8 @@ public:
     Matrix getAdjacencyMatrix() const;
     std::vector<Node*> getExitNodes() const;
     std::vector<int> getCurrentPath() const;
+    std::vector<int> getDistance() const;
+    std::vector<int> getTopologicalOrder() const;
 
     bool isOriented() const;
 };
