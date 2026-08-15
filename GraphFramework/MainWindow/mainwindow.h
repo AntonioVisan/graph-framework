@@ -5,8 +5,14 @@
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QFileDialog>
+#include <QMessageBox>
 
 #include "../Graph/graph.h"
+
+#include <string>
+
+using matrix = std::vector<std::vector<int>>;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -28,17 +34,43 @@ public:
 	void mousePressEvent(QMouseEvent* event) override;
 
 private slots:
-	void on_radioButton_toggled(bool checked);
-	void on_radioButton_2_toggled(bool checked);
+	//Graph
+	void on_undirectedRadioButton_toggled(bool checked);
+	void on_directedRadioButton_toggled(bool checked);
+
+	// Labyrinth
+	void on_openFileButton_clicked();
+	void on_findGraphPathsButton_clicked();
+	void on_drawLabyrinthButton_clicked();
+	void on_findLabyrinthPathsButton_clicked();
+	void on_drawGraphButton_clicked();
+	void on_clearDrawingButton_clicked();
+	void on_clearPathsButton_clicked();
 
 private:
 	void drawArrow(QPainter& painter, QPoint start, QPoint end);
 
 	Ui::MainWindow* ui;
-	Graph m_graph;
+
+	Graph m_manualGraph;
+	Graph m_labyrinthGraph;
 
 	Node* m_firstNode = nullptr;
 	Node* m_pressedNode = nullptr;
+
+	bool drawGraph = false;
+    bool drawLabyrinth = false;
+
+	enum class Page
+	{
+		Graph,
+		Labyrinth
+	};
+
+	Page m_currentPage = Page::Graph;
+
+    QString fileName;
+    matrix mat;
 };
 
 #endif

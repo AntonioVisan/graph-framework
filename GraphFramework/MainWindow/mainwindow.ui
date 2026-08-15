@@ -6,42 +6,147 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>808</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QRadioButton" name="radioButton">
+   <widget class="QStackedWidget" name="stackedWidget">
     <property name="geometry">
      <rect>
-      <x>700</x>
-      <y>10</y>
-      <width>90</width>
-      <height>21</height>
+      <x>0</x>
+      <y>0</y>
+      <width>800</width>
+      <height>401</height>
      </rect>
     </property>
-    <property name="text">
-     <string>Neorientat</string>
-    </property>
-    <property name="checked">
-     <bool>true</bool>
-    </property>
-   </widget>
-   <widget class="QRadioButton" name="radioButton_2">
-    <property name="geometry">
-     <rect>
-      <x>700</x>
-      <y>40</y>
-      <width>90</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Orientat</string>
-    </property>
+    <widget class="QWidget" name="graphPage">
+     <widget class="QRadioButton" name="undirectedRadioButton">
+      <property name="geometry">
+       <rect>
+        <x>700</x>
+        <y>10</y>
+        <width>90</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Unoriented</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="directedRadioButton">
+      <property name="geometry">
+       <rect>
+        <x>700</x>
+        <y>40</y>
+        <width>90</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Oriented</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="labyrinthPage">
+     <widget class="QPushButton" name="openFileButton">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>80</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Open File</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="drawLabyrinthButton">
+      <property name="geometry">
+       <rect>
+        <x>350</x>
+        <y>10</y>
+        <width>101</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Draw Labyrinth</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="drawGraphButton">
+      <property name="geometry">
+       <rect>
+        <x>710</x>
+        <y>0</y>
+        <width>80</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Draw Graph</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="findGraphPathsButton">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>340</y>
+        <width>131</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Find Graph Exit Paths</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="clearPathsButton">
+      <property name="geometry">
+       <rect>
+        <x>700</x>
+        <y>340</y>
+        <width>91</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Clear Exit Paths</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="clearDrawingButton">
+      <property name="geometry">
+       <rect>
+        <x>700</x>
+        <y>370</y>
+        <width>91</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Clear Drawing</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="findLabyrinthPathsButton">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>370</y>
+        <width>141</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Find Labyrinth Exit Paths</string>
+      </property>
+     </widget>
+    </widget>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -49,12 +154,41 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>808</width>
      <height>21</height>
     </rect>
    </property>
   </widget>
+  <widget class="QToolBar" name="navigationToolBar">
+   <property name="windowTitle">
+    <string>Navigation</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionGraph"/>
+   <addaction name="actionLabyrinth"/>
+  </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionGraph">
+   <property name="text">
+    <string>Graph</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionLabyrinth">
+   <property name="text">
+    <string>Labyrinth</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

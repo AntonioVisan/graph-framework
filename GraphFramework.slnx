@@ -2,5 +2,5 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
-  <Project Path="GraphFramework/GraphFramework.vcxproj" />
+  <Project Path="GraphFramework/GraphFramework.vcxproj" Id="e34f484c-e5f0-4e09-ae86-63d4864671db" />
 </Solution>
