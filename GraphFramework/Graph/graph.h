@@ -8,6 +8,7 @@
 #include <utility>
 
 using Matrix = std::vector<std::vector<int>>;
+using CostMatrix = std::vector<std::vector<double>>;
 
 class Graph
 {
@@ -16,7 +17,7 @@ class Graph
     bool m_oriented=false;
 
     Matrix m_adjacencyMatrix;
-    Matrix m_costMatrix;
+    CostMatrix m_costMatrix;
 
     std::vector<std::vector<int>> m_adjacencyList;
 
@@ -25,7 +26,7 @@ class Graph
     std::vector<Node*> m_exitNodes;
     std::vector<int> m_currentPath;
     std::vector<int> m_parent;
-    std::vector<int> m_distance;
+    std::vector<double> m_distance;
     std::vector<int> m_topologicalOrder;
 
     // Connected components.
@@ -50,8 +51,8 @@ public:
     void addNode(QPoint p);
     void addNode(int row, int column, int value);
     void addEdge(Node* first, Node* second);
-    void setEdgeCost(Node* first, Node* second, int cost);
-    int getEdgeCost(Node* first, Node* second) const;
+    void setEdgeCost(Node* first, Node* second, double cost);
+    double getEdgeCost(Node* first, Node* second) const;
     void changeState();
 
     // Labyrinth.
@@ -62,6 +63,7 @@ public:
     bool hasCycle();
     void topologicalSort();
     void findShortestPaths(Node* source);
+    void dijkstra(Node* source, Node* target);
     void findPath(Node* exit);
 
     // Theme 4 - connected components.
@@ -80,7 +82,7 @@ public:
     Matrix getAdjacencyMatrix() const;
     std::vector<Node*> getExitNodes() const;
     std::vector<int> getCurrentPath() const;
-    std::vector<int> getDistance() const;
+    std::vector<double> getDistance() const;
     std::vector<int> getTopologicalOrder() const;
 
     std::vector<std::vector<int>> getConnectedComponents() const;

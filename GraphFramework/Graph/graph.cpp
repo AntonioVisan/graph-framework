@@ -45,6 +45,10 @@ Graph::Graph(const Graph& other)
 		newNode->setRow(node->getRow());
 		newNode->setColumn(node->getColumn());
 		newNode->setColor(node->getColor());
+		newNode->setGeoCoord(
+			node->getLongitude(), 
+			node->getLatitude()
+		);
 
 		m_nodes.push_back(newNode);
 		m_coordToNode[{node->getRow(), node->getColumn()}] = newNode;
@@ -119,6 +123,10 @@ Graph& Graph::operator=(const Graph& other)
 		newNode->setRow(node->getRow());
 		newNode->setColumn(node->getColumn());
 		newNode->setColor(node->getColor());
+		newNode->setGeoCoord(
+			node->getLongitude(),
+			node->getLatitude()
+		);
 
 		m_nodes.push_back(newNode);
 		m_coordToNode[{node->getRow(), node->getColumn()}] = newNode;
@@ -187,7 +195,7 @@ void Graph::addNode(QPoint p)
 		row.resize(m_nodes.size(), 0);
 
 	for (auto& row : m_costMatrix)
-		row.resize(m_nodes.size(), 0);
+		row.resize(m_nodes.size(), 0.0);
 
 	m_adjacencyList.resize(m_nodes.size());
 
@@ -268,7 +276,7 @@ void Graph::addEdge(Node* first, Node* second)
 	printAdjacencyMatrix();
 }
 
-void Graph::setEdgeCost(Node* first, Node* second, int cost)
+void Graph::setEdgeCost(Node* first, Node* second, double cost)
 {
 	if (!first || !second)
 		return;
@@ -297,21 +305,21 @@ void Graph::setEdgeCost(Node* first, Node* second, int cost)
 	}
 }
 
-int Graph::getEdgeCost(Node* first, Node* second) const
+double Graph::getEdgeCost(Node* first, Node* second) const
 {
 	if (!first || !second)
-		return 0;
+		return 0.0;
 
 	int firstIndex = first->getIndex();
 	int secondIndex = second->getIndex();
 
 	if (firstIndex < 0 || secondIndex < 0)
-		return 0;
+		return 0.0;
 
 	if (firstIndex >= static_cast<int>(m_costMatrix.size()) ||
 		secondIndex >= static_cast<int>(m_costMatrix.size()))
 	{
-		return 0;
+		return 0.0;
 	}
 
 	return m_costMatrix[firstIndex][secondIndex];
@@ -352,7 +360,7 @@ void Graph::changeState()
 
 	m_costMatrix.assign(
 		m_nodes.size(),
-		std::vector<int>(m_nodes.size(), 0)
+		std::vector<double>(m_nodes.size(), 0.0)
 	);
 
 	m_adjacencyList.assign(m_nodes.size(), {});
@@ -432,7 +440,7 @@ void Graph::constructLabyrinth(const Matrix& matrix)
 
 	m_costMatrix.assign(
 		m_nodes.size(),
-		std::vector<int>(m_nodes.size(), 0)
+		std::vector<double>(m_nodes.size(), 0.0)
 	);
 
 	m_adjacencyList.assign(m_nodes.size(), {});
@@ -615,7 +623,7 @@ void Graph::findShortestPaths(Node* source)
 {
 	m_distance.assign(
 		m_nodes.size(),
-		std::numeric_limits<int>::max()
+		std::numeric_limits<double>::infinity()
 	);
 
 	m_parent.assign(m_nodes.size(), -1);
@@ -637,7 +645,7 @@ void Graph::findShortestPaths(Node* source)
 	if (m_topologicalOrder.empty())
 		return;
 
-	m_distance[sourceIndex] = 0;
+	m_distance[sourceIndex] = 0.0;
 
 	auto sourcePosition =
 		std::find(
@@ -656,14 +664,14 @@ void Graph::findShortestPaths(Node* source)
 		int current = *it;
 
 		if (m_distance[current] ==
-			std::numeric_limits<int>::max())
+			std::numeric_limits<double>::infinity())
 		{
 			continue;
 		}
 
 		for (int neighbour : m_adjacencyList[current])
 		{
-			int cost = m_costMatrix[current][neighbour];
+			double cost = m_costMatrix[current][neighbour];
 
 			if (m_distance[current] + cost <
 				m_distance[neighbour])
@@ -672,6 +680,76 @@ void Graph::findShortestPaths(Node* source)
 					m_distance[current] + cost;
 
 				m_parent[neighbour] = current;
+			}
+		}
+	}
+}
+
+void Graph::dijkstra(Node* source, Node* target)
+{
+	m_distance.assign(
+		m_nodes.size(),
+		std::numeric_limits<double>::infinity()
+	);
+
+	m_parent.assign(m_nodes.size(), -1);
+	m_currentPath.clear();
+
+	if (!source || !target)
+		return;
+
+	int sourceIndex = source->getIndex();
+	int targetIndex = target->getIndex();
+
+	if (sourceIndex < 0 ||
+		targetIndex < 0 ||
+		sourceIndex >= static_cast<int>(m_nodes.size()) ||
+		targetIndex >= static_cast<int>(m_nodes.size()))
+	{
+		return;
+	}
+
+	std::vector<bool> visited(m_nodes.size(), false);
+
+	std::priority_queue<
+		std::pair<double, int>,
+		std::vector<std::pair<double, int>>,
+		std::greater<>
+	> pq;
+
+	m_distance[sourceIndex] = 0.0;
+
+	pq.push({ 0.0, sourceIndex });
+
+	while (!pq.empty())
+	{
+		auto [distanceNode, current] = pq.top();
+		pq.pop();
+
+		if (visited[current])
+			continue;
+
+		visited[current] = true;
+
+		if (current == targetIndex)
+			return;
+
+		for (int neighbour : m_adjacencyList[current])
+		{
+			double cost = m_costMatrix[current][neighbour];
+
+			if (!visited[neighbour] &&
+				distanceNode + cost < m_distance[neighbour])
+			{
+				m_distance[neighbour] =
+					distanceNode + cost;
+
+				m_parent[neighbour] = current;
+
+				pq.push({
+					m_distance[neighbour],
+					neighbour
+					});
 			}
 		}
 	}
@@ -704,7 +782,7 @@ void Graph::findPath(Node* exit)
 		}
 	}
 	else if (m_distance[current] ==
-		std::numeric_limits<int>::max())
+		std::numeric_limits<double>::infinity())
 	{
 		return;
 	}
@@ -982,7 +1060,7 @@ std::vector<int> Graph::getCurrentPath() const
 	return m_currentPath;
 }
 
-std::vector<int> Graph::getDistance() const
+std::vector<double> Graph::getDistance() const
 {
 	return m_distance;
 }
