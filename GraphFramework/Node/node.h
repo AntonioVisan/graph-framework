@@ -11,6 +11,8 @@ class Node
     int m_row;
     int m_column;
     QColor m_color;
+    double m_longitude;
+    double m_latitude;
 
 public:
     Node(int index = 0, QPoint p = QPoint(0, 0));
@@ -21,6 +23,9 @@ public:
     void setRow(int row);
     void setColumn(int column);
     void setColor(const QColor& color);
+    void setLongitude(double longitude);
+    void setLatitude(double latitude);
+    void setGeoCoord(double longitude, double latitude);
 
     int getIndex() const;
     QPoint getCoord() const;
@@ -29,6 +34,8 @@ public:
     int getRow() const;
     int getColumn() const;
     QColor getColor() const;
+    double getLongitude() const;
+    double getLatitude() const;
 };
 
 #endif

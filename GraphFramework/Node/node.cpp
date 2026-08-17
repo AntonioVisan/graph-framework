@@ -5,7 +5,9 @@ Node::Node(int index, QPoint p)
     m_coord(p),
     m_row(0),
     m_column(0),
-    m_color(QColor())
+    m_color(QColor()),
+    m_longitude(0.0),
+    m_latitude(0.0)
 {}
 
 void Node::setIndex(int index)
@@ -37,6 +39,22 @@ void Node::setColumn(int column)
 void Node::setColor(const QColor& color)
 {
     m_color = color;
+}
+
+void Node::setLongitude(double longitude)
+{
+    m_longitude = longitude;
+}
+
+void Node::setLatitude(double latitude)
+{
+    m_latitude = latitude;
+}
+
+void Node::setGeoCoord(double longitude, double latitude)
+{
+    m_longitude = longitude;
+    m_latitude = latitude;
 }
 
 int Node::getIndex() const
@@ -72,4 +90,14 @@ int Node::getColumn() const
 QColor Node::getColor() const
 {
     return m_color;
+}
+
+double Node::getLongitude() const
+{
+    return m_longitude;
+}
+
+double Node::getLatitude() const
+{
+    return m_latitude;
 }
