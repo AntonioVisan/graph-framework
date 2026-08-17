@@ -38,6 +38,9 @@
     <ClCompile Include="Node\node.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="KDTree\kdtree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="MainWindow\mainwindow.ui">
@@ -57,6 +60,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Node\node.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KDTree\kdtree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

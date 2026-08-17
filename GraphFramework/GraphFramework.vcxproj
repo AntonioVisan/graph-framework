@@ -69,7 +69,7 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-	  <PreprocessorDefinitions>QT_NO_DEPRECATED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>QT_NO_DEPRECATED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -84,7 +84,7 @@
       <ConformanceMode>true</ConformanceMode>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-	  <PreprocessorDefinitions>QT_NO_DEPRECATED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>QT_NO_DEPRECATED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -96,6 +96,7 @@
   <ItemGroup>
     <ClCompile Include="Edge\edge.cpp" />
     <ClCompile Include="Graph\graph.cpp" />
+    <ClCompile Include="KDTree\kdtree.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWindow\mainwindow.cpp" />
     <ClCompile Include="Node\node.cpp" />
@@ -109,6 +110,7 @@
   <ItemGroup>
     <ClInclude Include="Edge\edge.h" />
     <ClInclude Include="Graph\graph.h" />
+    <ClInclude Include="KDTree\kdtree.h" />
     <ClInclude Include="Node\node.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1,4 +1,6 @@
 #include "../Graph/graph.h"
+#include "../XML/rapidxml.hpp"
+#include "../XML/rapidxml_utils.hpp"
 #include <fstream>
 #include <queue>
 #include <stack>
@@ -37,7 +39,7 @@ Graph::Graph(const Graph& other)
 	m_stronglyConnectedComponents = other.m_stronglyConnectedComponents;
 	m_componentIndex = other.m_componentIndex;
 	m_componentEdges = other.m_componentEdges;
-	
+
 	for (const auto* node : other.m_nodes)
 	{
 		Node* newNode = new Node(node->getIndex(), node->getCoord());
@@ -46,7 +48,7 @@ Graph::Graph(const Graph& other)
 		newNode->setColumn(node->getColumn());
 		newNode->setColor(node->getColor());
 		newNode->setGeoCoord(
-			node->getLongitude(), 
+			node->getLongitude(),
 			node->getLatitude()
 		);
 
@@ -232,6 +234,17 @@ void Graph::addNode(int row, int column, int value)
 	}
 }
 
+void Graph::addNode(int id, double longitude, double latitude)
+{
+	Node* node = new Node(id, QPoint(0, 0));
+
+	node->setGeoCoord(longitude, latitude);
+
+	m_nodes.push_back(node);
+
+	m_idToNode[id] = node;
+}
+
 void Graph::addEdge(Node* first, Node* second)
 {
 	if (!first || !second)
@@ -390,6 +403,92 @@ void Graph::changeState()
 	printAdjacencyMatrix();
 }
 
+void Graph::loadFromXML(const std::string& filename)
+{
+	clearResources();
+
+	m_oriented = false;
+
+	rapidxml::file<> xmlFile(filename.c_str());
+
+	rapidxml::xml_document<> doc;
+	doc.parse<0>(xmlFile.data());
+
+	rapidxml::xml_node<>* root = doc.first_node("map");
+
+	if (!root)
+		return;
+
+	rapidxml::xml_node<>* nodes = root->first_node("nodes");
+	rapidxml::xml_node<>* arcs = root->first_node("arcs");
+
+	if (!nodes || !arcs)
+		return;
+
+	// Load nodes.
+	for (rapidxml::xml_node<>* node = nodes->first_node("node");
+		node != nullptr;
+		node = node->next_sibling("node"))
+	{
+		int id =
+			std::stoi(node->first_attribute("id")->value());
+
+		double longitude =
+			std::stod(node->first_attribute("longitude")->value());
+
+		double latitude =
+			std::stod(node->first_attribute("latitude")->value());
+
+		longitude /= 100000.0;
+		latitude /= 100000.0;
+
+		addNode(id, longitude, latitude);
+	}
+
+	// Initialize graph structures.
+	m_adjacencyMatrix.assign(
+		m_nodes.size(),
+		std::vector<int>(m_nodes.size(), 0)
+	);
+
+	m_costMatrix.assign(
+		m_nodes.size(),
+		std::vector<double>(m_nodes.size(), 0.0)
+	);
+
+	m_adjacencyList.assign(m_nodes.size(), {});
+
+	// Load arcs.
+	for (rapidxml::xml_node<>* arc = arcs->first_node("arc");
+		arc != nullptr;
+		arc = arc->next_sibling("arc"))
+	{
+		int from =
+			std::stoi(arc->first_attribute("from")->value());
+
+		int to =
+			std::stoi(arc->first_attribute("to")->value());
+
+		double length =
+			std::stod(arc->first_attribute("length")->value());
+
+		auto firstIt = m_idToNode.find(from);
+		auto secondIt = m_idToNode.find(to);
+
+		if (firstIt == m_idToNode.end() ||
+			secondIt == m_idToNode.end())
+		{
+			continue;
+		}
+
+		Node* first = firstIt->second;
+		Node* second = secondIt->second;
+
+		addEdge(first, second);
+		setEdgeCost(first, second, length);
+	}
+}
+
 void Graph::readLabyrinth(Matrix& matrix, const std::string& filename)
 {
 	std::ifstream fin(filename);
@@ -424,8 +523,8 @@ void Graph::constructLabyrinth(const Matrix& matrix)
 
 	for (int row = 0; row < static_cast<int>(matrix.size()); ++row)
 	{
-		for (int column = 0; 
-			column < static_cast<int>(matrix[row].size()); 
+		for (int column = 0;
+			column < static_cast<int>(matrix[row].size());
 			++column)
 		{
 			if (matrix[row][column] != 0)
@@ -447,8 +546,8 @@ void Graph::constructLabyrinth(const Matrix& matrix)
 
 	for (int row = 0; row < static_cast<int>(matrix.size()); ++row)
 	{
-		for (int column = 0; 
-			column < static_cast<int>(matrix[row].size()); 
+		for (int column = 0;
+			column < static_cast<int>(matrix[row].size());
 			++column)
 		{
 			if (matrix[row][column] == 0)
@@ -459,7 +558,7 @@ void Graph::constructLabyrinth(const Matrix& matrix)
 			if (column + 1 < static_cast<int>(matrix[row].size()) &&
 				matrix[row][column + 1] != 0)
 			{
-				Node* neighbour = 
+				Node* neighbour =
 					m_coordToNode[{row, column + 1}];
 
 				addEdge(current, neighbour);
@@ -469,7 +568,7 @@ void Graph::constructLabyrinth(const Matrix& matrix)
 				column < static_cast<int>(matrix[row + 1].size()) &&
 				matrix[row + 1][column] != 0)
 			{
-				Node* neighbour 
+				Node* neighbour
 					= m_coordToNode[{row + 1, column}];
 
 				addEdge(current, neighbour);
@@ -764,7 +863,7 @@ void Graph::findPath(Node* exit)
 
 	int current = exit->getIndex();
 
-	if (current < 0 || 
+	if (current < 0 ||
 		current >= static_cast<int>(m_parent.size()))
 	{
 		return;
@@ -1020,6 +1119,7 @@ void Graph::clearResources()
 	m_costMatrix.clear();
 	m_adjacencyList.clear();
 	m_coordToNode.clear();
+	m_idToNode.clear();
 
 	m_start = nullptr;
 	m_exitNodes.clear();

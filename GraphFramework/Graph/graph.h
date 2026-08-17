@@ -22,6 +22,8 @@ class Graph
     std::vector<std::vector<int>> m_adjacencyList;
 
     std::map<std::pair<int, int>, Node*> m_coordToNode;
+    std::map<int, Node*> m_idToNode;
+
     Node* m_start = nullptr;
     std::vector<Node*> m_exitNodes;
     std::vector<int> m_currentPath;
@@ -50,10 +52,12 @@ public:
     // Graph construction.
     void addNode(QPoint p);
     void addNode(int row, int column, int value);
+    void addNode(int id, double longitude, double latitude);
     void addEdge(Node* first, Node* second);
     void setEdgeCost(Node* first, Node* second, double cost);
     double getEdgeCost(Node* first, Node* second) const;
     void changeState();
+    void loadFromXML(const std::string& filename);
 
     // Labyrinth.
     void readLabyrinth(Matrix& matrix, const std::string& filename);
