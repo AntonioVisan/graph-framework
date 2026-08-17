@@ -39,4 +39,8 @@ Makefile
 # Temporary files
 *.tmp
 *.log
-*.bakadjacencyMatrix.txt
+*.bak
+
+# Generated graph files
+GraphFramework/adjacencyMatrix.txt
+GraphFramework/graph.png

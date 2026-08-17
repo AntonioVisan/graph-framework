@@ -24,34 +24,114 @@
      </rect>
     </property>
     <widget class="QWidget" name="graphPage">
-     <widget class="QRadioButton" name="undirectedRadioButton">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <widget class="QWidget" name="">
       <property name="geometry">
        <rect>
-        <x>700</x>
+        <x>0</x>
         <y>10</y>
-        <width>90</width>
-        <height>21</height>
+        <width>801</width>
+        <height>381</height>
        </rect>
       </property>
-      <property name="text">
-       <string>Unoriented</string>
-      </property>
-      <property name="checked">
-       <bool>true</bool>
-      </property>
-     </widget>
-     <widget class="QRadioButton" name="directedRadioButton">
-      <property name="geometry">
-       <rect>
-        <x>700</x>
-        <y>40</y>
-        <width>90</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Oriented</string>
-      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="10,0,0">
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,1">
+           <item>
+            <widget class="QPushButton" name="showAdjacencyListButton">
+             <property name="text">
+              <string>Show Adjacency List</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="showConnectedComponentsButton">
+             <property name="text">
+              <string>Show Connected Components</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="resetColorsButton">
+             <property name="text">
+              <string>Reset Colors</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,1,1">
+           <item>
+            <widget class="QPushButton" name="showStronglyConnectedComponentsButton">
+             <property name="text">
+              <string>Show Strongly Connected Components</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="saveGraphImageButton">
+             <property name="text">
+              <string>Save Graph as Image</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="restoreInitialGraphButton">
+             <property name="text">
+              <string>Restore Initial Graph</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QWidget" name="drawingArea" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>200</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,1">
+         <item>
+          <widget class="QRadioButton" name="undirectedRadioButton">
+           <property name="text">
+            <string>Unoriented</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="directedRadioButton">
+           <property name="text">
+            <string>Oriented</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
      </widget>
     </widget>
     <widget class="QWidget" name="labyrinthPage">

@@ -9,6 +9,8 @@ MainWindow::MainWindow(QWidget* parent)
 	, drawLabyrinth(false)
 {
 	ui->setupUi(this);
+	
+	ui->drawingArea->installEventFilter(this);
 
 	m_weightedGraph.changeState();
 
@@ -47,6 +49,54 @@ MainWindow::MainWindow(QWidget* parent)
 MainWindow::~MainWindow()
 {
 	delete ui;
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* event)
+{
+	if (watched == ui->drawingArea)
+	{
+		if (event->type() == QEvent::MouseButtonPress)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mousePressEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::MouseButtonRelease)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mouseReleaseEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::MouseMove)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mouseMoveEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::Paint)
+		{
+			QPainter painter(ui->drawingArea);
+
+			if (m_currentPage == Page::Graph)
+				drawGraphContent(painter);
+
+			return true;
+		}
+	}
+
+	return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent* m)
@@ -122,11 +172,11 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 	if (m_currentPage != Page::Graph)
 		return;
 
-	const int offsetX = 100;
-	const int offsetY = 50;
+	if (m_showStronglyConnectedComponents)
+		return;
 
-	int mouseX = m->pos().x() - offsetX;
-	int mouseY = m->pos().y() - offsetY;
+	int mouseX = m->pos().x();
+	int mouseY = m->pos().y();
 
 	// Right click: add a new node if there is no overlapping node.
 	if (m->button() == Qt::RightButton)
@@ -148,7 +198,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 		if (!overlap)
 		{
 			m_manualGraph.addNode(QPoint(mouseX, mouseY));
-			update();
+			ui->drawingArea->update();
 		}
 	}
 
@@ -175,7 +225,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 			{
 				m_manualGraph.addEdge(m_firstNode, selected);
 				m_firstNode = nullptr;
-				update();
+				ui->drawingArea->update();
 			}
 			else
 			{
@@ -225,55 +275,6 @@ void MainWindow::paintEvent(QPaintEvent*)
 		}
 
 		return;
-	}
-
-	// Draw the manually created graph on the Graph page.
-	if (m_currentPage == Page::Graph)
-	{
-		const int graphOffsetX = 100;
-		const int graphOffsetY = 50;
-
-		std::vector<Node*> nodes = m_manualGraph.getNodes();
-
-		for (const auto* n : nodes)
-		{
-			QRect r(
-				n->getX() + graphOffsetX - 10,
-				n->getY() + graphOffsetY - 10,
-				20,
-				20
-			);
-
-			QString s = QString::number(n->getIndex());
-
-			if (n->getColor().isValid())
-				p.setBrush(n->getColor());
-			else
-				p.setBrush(Qt::NoBrush);
-
-			p.drawEllipse(r);
-			p.drawText(r, Qt::AlignCenter, s);
-		}
-
-		std::vector<Edge> edges = m_manualGraph.getEdges();
-
-		for (const auto& ed : edges)
-		{
-			QPoint firstNode(
-				ed.getFirst()->getX() + graphOffsetX,
-				ed.getFirst()->getY() + graphOffsetY
-			);
-
-			QPoint secondNode(
-				ed.getSecond()->getX() + graphOffsetX,
-				ed.getSecond()->getY() + graphOffsetY
-			);
-
-			p.drawLine(firstNode, secondNode);
-
-			if (m_manualGraph.isOriented())
-				drawArrow(p, firstNode, secondNode);
-		}
 	}
 
 	// Draw the labyrinth-generated graph on the Labyrinth page.
@@ -424,37 +425,33 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 	if (m_currentPage != Page::Graph)
 		return;
 
+	if (m_showStronglyConnectedComponents)
+		return;
+
 	if (m_pressedNode)
 	{
-		const int offsetX = 100;
-		const int offsetY = 50;
-		
 		const int margin = 10;
 		const int nodeRadius = 10;
 
-		// Mouse position in MainWindow coordinates.
 		int mouseX = m->pos().x();
 		int mouseY = m->pos().y();
 
-		// Keep the whole node inside the window.
+		// Keep the whole node inside the drawing area.
 		if (mouseX < nodeRadius + margin)
 			mouseX = nodeRadius + margin;
 
-		if (mouseX > width() - nodeRadius - margin)
-			mouseX = width() - nodeRadius - margin;
+		if (mouseX > ui->drawingArea->width() - nodeRadius - margin)
+			mouseX = ui->drawingArea->width() - nodeRadius - margin;
 
-		// Keep the whole node below the menu bar.
-		int topLimit = menuBar()->geometry().bottom() + margin + 2 * nodeRadius + 10;
+		if (mouseY < nodeRadius + margin)
+			mouseY = nodeRadius + margin;
 
-		if (mouseY < topLimit)
-			mouseY = topLimit;
+		if (mouseY > ui->drawingArea->height() - nodeRadius - margin)
+			mouseY = ui->drawingArea->height() - nodeRadius - margin;
 
-		if (mouseY > height() - nodeRadius - margin)
-			mouseY = height() - nodeRadius - margin;
-
-		// Convert back to graph coordinates.
-		int newX = mouseX - offsetX;
-		int newY = mouseY - offsetY;
+		// Mouse coordinates are already relative to drawingArea.
+		int newX = mouseX;
+		int newY = mouseY;
 
 		std::vector<Node*> nodes = m_manualGraph.getNodes();
 		bool overlap = false;
@@ -476,7 +473,7 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 		if (!overlap)
 		{
 			m_pressedNode->setCoord(QPoint(newX, newY));
-			update();
+			ui->drawingArea->update();
 		}
 	}
 }
@@ -505,11 +502,11 @@ void MainWindow::mousePressEvent(QMouseEvent* m)
 	if (m_currentPage != Page::Graph)
 		return;
 
-	const int offsetX = 100;
-	const int offsetY = 50;
+	if (m_showStronglyConnectedComponents)
+		return;
 
-	int mouseX = m->pos().x() - offsetX;
-	int mouseY = m->pos().y() - offsetY;
+	int mouseX = m->pos().x();
+	int mouseY = m->pos().y();
 
 	// Middle click selects a node for dragging.
 	if (m->button() == Qt::MiddleButton)
@@ -525,6 +522,187 @@ void MainWindow::mousePressEvent(QMouseEvent* m)
 				break;
 			}
 		}
+	}
+}
+
+void MainWindow::drawGraphContent(QPainter& p)
+{
+	if (m_showStronglyConnectedComponents)
+	{
+		// Draw the condensed graph of strongly connected components.
+		const auto components =
+			m_manualGraph.getStronglyConnectedComponents();
+
+		const auto componentEdges =
+			m_manualGraph.getComponentEdges();
+
+		if (components.empty())
+			return;
+
+		std::vector<QPoint> componentPositions;
+		std::vector<int> componentRadii;
+
+		const int centerX = ui->drawingArea->width() / 2;
+		const int centerY = ui->drawingArea->height() / 2;
+
+		const int radius =
+			std::min(
+				ui->drawingArea->width(),
+				ui->drawingArea->height()
+			) / 3;
+
+		const int componentCount =
+			static_cast<int>(components.size());
+
+		// Position each component on a circle.
+		for (int i = 0; i < componentCount; ++i)
+		{
+			double angle =
+				2.0 * M_PI * i / componentCount;
+
+			int x = centerX +
+				static_cast<int>(radius * std::cos(angle));
+
+			int y = centerY +
+				static_cast<int>(radius * std::sin(angle));
+
+			componentPositions.emplace_back(x, y);
+		}
+
+		// Draw the component nodes.
+		for (int i = 0; i < componentCount; ++i)
+		{
+			QString label;
+
+			for (int node : components[i])
+			{
+				label += QString::number(node);
+
+				if (node != components[i].back())
+					label += ", ";
+			}
+
+			QFontMetrics fontMetrics(p.font());
+
+			int textWidth =
+				fontMetrics.horizontalAdvance(label);
+
+			int textHeight =
+				fontMetrics.height();
+
+			int diameter =
+				std::max(textWidth, textHeight) + 30;
+
+			int nodeRadius = diameter / 2;
+
+			componentRadii.push_back(nodeRadius);
+
+			QRect rect(
+				componentPositions[i].x() - nodeRadius,
+				componentPositions[i].y() - nodeRadius,
+				diameter,
+				diameter
+			);
+
+			p.setBrush(Qt::white);
+			p.setPen(Qt::black);
+
+			p.drawEllipse(rect);
+			p.drawText(
+				rect,
+				Qt::AlignCenter,
+				label
+			);
+		}
+
+		// Draw edges between strongly connected components.
+		for (const auto& edge : componentEdges)
+		{
+			int firstComponent = edge.first;
+			int secondComponent = edge.second;
+
+			if (firstComponent < 0 ||
+				secondComponent < 0 ||
+				firstComponent >= componentCount ||
+				secondComponent >= componentCount)
+			{
+				continue;
+			}
+
+			QPoint start =
+				componentPositions[firstComponent];
+
+			QPoint end =
+				componentPositions[secondComponent];
+
+			p.setPen(Qt::black);
+			p.setBrush(Qt::black);
+
+			p.drawLine(start, end);
+
+			drawArrow(
+				p,
+				start,
+				end
+			);
+		}
+
+		return;
+	}
+
+	// Draw the original graph.
+
+	std::vector<Node*> nodes =
+		m_manualGraph.getNodes();
+
+	for (const auto* n : nodes)
+	{
+		QRect r(
+			n->getX() - 10,
+			n->getY() - 10,
+			20,
+			20
+		);
+
+		QString s =
+			QString::number(n->getIndex());
+
+		if (n->getColor().isValid())
+			p.setBrush(n->getColor());
+		else
+			p.setBrush(Qt::NoBrush);
+
+		p.drawEllipse(r);
+		p.drawText(
+			r,
+			Qt::AlignCenter,
+			s
+		);
+	}
+
+	std::vector<Edge> edges =
+		m_manualGraph.getEdges();
+
+	for (const auto& ed : edges)
+	{
+		QPoint firstNode(
+			ed.getFirst()->getX(),
+			ed.getFirst()->getY()
+		);
+
+		QPoint secondNode(
+			ed.getSecond()->getX(),
+			ed.getSecond()->getY()
+		);
+
+		p.drawLine(firstNode, secondNode);
+
+		if (m_manualGraph.isOriented())
+			drawArrow(
+				p,
+				firstNode,
+				secondNode
+			);
 	}
 }
 
@@ -575,6 +753,9 @@ void MainWindow::on_undirectedRadioButton_toggled(bool checked)
 {
 	if (checked)
 	{
+		if (m_showStronglyConnectedComponents)
+			return;
+
 		m_manualGraph.changeState();
 		update();
 	}
@@ -584,6 +765,9 @@ void MainWindow::on_directedRadioButton_toggled(bool checked)
 {
 	if (checked)
 	{
+		if (m_showStronglyConnectedComponents)
+			return;
+
 		m_manualGraph.changeState();
 		update();
 	}
@@ -1157,4 +1341,265 @@ void MainWindow::on_clearPathsButton_clicked()
 	}
 
 	update();
+}
+
+void MainWindow::on_showConnectedComponentsButton_clicked()
+{
+	if (m_showStronglyConnectedComponents)
+	{
+		QMessageBox::warning(
+			this,
+			"Connected Components",
+			"Return to the original graph before computing connected components."
+		);
+
+		return;
+	}
+
+	if (m_manualGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Connected Components",
+			"This graph contains no nodes."
+		);
+
+		return;
+	}
+
+	if (m_manualGraph.isOriented())
+	{
+		QMessageBox::warning(
+			this,
+			"Connected Components",
+			"Connected components can only be computed for an undirected graph."
+		);
+
+		return;
+	}
+
+	m_manualGraph.findConnectedComponents();
+
+	QMessageBox::information(
+		this,
+		"Connected Components",
+		QString("The graph contains %1 connected component(s).")
+		.arg(
+			static_cast<int>(
+				m_manualGraph.getConnectedComponents().size()
+				)
+		)
+	);
+
+	ui->drawingArea->update();
+}
+
+void MainWindow::on_resetColorsButton_clicked()
+{
+	if (m_showStronglyConnectedComponents)
+	{
+		QMessageBox::warning(
+			this,
+			"Reset Colors",
+			"Return to the original graph before resetting colors."
+		);
+
+		return;
+	}
+
+	if (m_manualGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Reset Colors",
+			"This graph contains no nodes."
+		);
+
+		return;
+	}
+
+	m_manualGraph.resetNodeColors();
+
+	ui->drawingArea->update();
+}
+
+void MainWindow::on_showStronglyConnectedComponentsButton_clicked()
+{
+	if (m_manualGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Strongly Connected Components",
+			"This graph contains no nodes."
+		);
+
+		return;
+	}
+
+	if (m_showStronglyConnectedComponents)
+	{
+		QMessageBox::information(
+			this,
+			"Strongly Connected Components",
+			"The strongly connected component graph is already displayed."
+		);
+
+		return;
+	}
+
+	if (!m_manualGraph.isOriented())
+	{
+		QMessageBox::warning(
+			this,
+			"Strongly Connected Components",
+			"Strongly connected components require a directed graph."
+		);
+
+		return;
+	}
+
+	m_manualGraph.findStronglyConnectedComponents();
+
+	m_showStronglyConnectedComponents = true;
+
+	ui->undirectedRadioButton->setEnabled(false);
+	ui->directedRadioButton->setEnabled(false);
+
+	QMessageBox::information(
+		this,
+		"Strongly Connected Components",
+		QString("The graph contains %1 strongly connected component(s).")
+		.arg(
+			static_cast<int>(
+				m_manualGraph
+				.getStronglyConnectedComponents()
+				.size()
+				)
+		)
+	);
+
+	ui->drawingArea->update();
+}
+
+void MainWindow::on_showAdjacencyListButton_clicked()
+{
+	if (m_showStronglyConnectedComponents)
+	{
+		QMessageBox::warning(
+			this,
+			"Adjacency List",
+			"Return to the original graph before displaying the adjacency list."
+		);
+
+		return;
+	}
+
+	const Matrix adjacency =
+		m_manualGraph.getAdjacencyMatrix();
+
+	if (adjacency.empty())
+	{
+		QMessageBox::information(
+			this,
+			"Adjacency List",
+			"This graph contains no nodes."
+		);
+
+		return;
+	}
+
+	QString message =
+		"Adjacency list:\n\n";
+
+	for (int i = 0;
+		i < static_cast<int>(adjacency.size());
+		++i)
+	{
+		message +=
+			QString("Node %1: ").arg(i);
+
+		bool foundNeighbour = false;
+
+		for (int j = 0;
+			j < static_cast<int>(adjacency[i].size());
+			++j)
+		{
+			if (adjacency[i][j] != 0)
+			{
+				message +=
+					QString::number(j);
+
+				message += " ";
+
+				foundNeighbour = true;
+			}
+		}
+
+		if (!foundNeighbour)
+			message += "no neighbours";
+
+		message += "\n";
+	}
+
+	QMessageBox::information(
+		this,
+		"Adjacency List",
+		message
+	);
+}
+
+void MainWindow::on_saveGraphImageButton_clicked()
+{
+	if (m_manualGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Save Graph Image",
+			"This graph contains no nodes."
+		);
+
+		return;
+	}
+
+	QPixmap pixmap = this->grab();
+
+	if (pixmap.save("graph.png"))
+	{
+		QMessageBox::information(
+			this,
+			"Save Graph Image",
+			"The graph was saved as graph.png."
+		);
+	}
+	else
+	{
+		QMessageBox::warning(
+			this,
+			"Save Graph Image",
+			"The graph could not be saved."
+		);
+	}
+}
+
+void MainWindow::on_restoreInitialGraphButton_clicked()
+{
+	if (!m_showStronglyConnectedComponents)
+	{
+		QMessageBox::information(
+			this,
+			"Restore Graph",
+			"The original graph is already displayed."
+		);
+
+		return;
+	}
+
+	m_showStronglyConnectedComponents = false;
+
+	ui->undirectedRadioButton->setEnabled(true);
+	ui->directedRadioButton->setEnabled(true);
+
+	m_manualGraph.resetNodeColors();
+
+	ui->drawingArea->update();
 }

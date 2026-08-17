@@ -24,6 +24,8 @@ class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 
+protected:
+	bool eventFilter(QObject* watched, QEvent* event) override;
 public:
 	MainWindow(QWidget* parent = nullptr);
 	~MainWindow();
@@ -37,6 +39,18 @@ private slots:
 	//Graph
 	void on_undirectedRadioButton_toggled(bool checked);
 	void on_directedRadioButton_toggled(bool checked);
+
+	// Theme 4 - Connected Components
+	void on_showConnectedComponentsButton_clicked();
+	void on_resetColorsButton_clicked();
+
+	// Theme 4 - Strongly Connected Components
+	void on_showStronglyConnectedComponentsButton_clicked();
+
+	// Theme 4 - Graph utilities
+	void on_showAdjacencyListButton_clicked();
+	void on_saveGraphImageButton_clicked();
+	void on_restoreInitialGraphButton_clicked();
 
 	// Weighted Graph
 	void on_addEdgeWeightButton_clicked();
@@ -54,6 +68,7 @@ private slots:
 	void on_clearPathsButton_clicked();
 
 private:
+	void drawGraphContent(QPainter& p);
 	void drawArrow(QPainter& painter, QPoint start, QPoint end);
 
 	Ui::MainWindow* ui;
@@ -69,7 +84,8 @@ private:
 	Node* m_weightedPressedNode = nullptr;
 
 	bool drawGraph = false;
-    bool drawLabyrinth = false;
+	bool drawLabyrinth = false;
+	bool m_showStronglyConnectedComponents = false;
 
 	enum class Page
 	{
@@ -80,8 +96,8 @@ private:
 
 	Page m_currentPage = Page::Graph;
 
-    QString fileName;
-    matrix mat;
+	QString fileName;
+	matrix mat;
 };
 
 #endif
