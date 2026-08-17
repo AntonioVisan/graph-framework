@@ -3,10 +3,10 @@
 Edge::Edge() 
     : m_first(nullptr), 
       m_second(nullptr),
-      m_cost(0)
+      m_cost(0.0)
 {}
 
-Edge::Edge(Node* f, Node* s, int cost) 
+Edge::Edge(Node* f, Node* s, double cost) 
     : m_first(f), 
       m_second(s), 
       m_cost(cost)
@@ -25,7 +25,7 @@ bool Edge::equals(const Edge& other, bool oriented) const
             m_second->getIndex() == other.getSecond()->getIndex());
 }
 
-void Edge::setCost(int cost)
+void Edge::setCost(double cost)
 {
     m_cost = cost;
 }
@@ -40,7 +40,7 @@ Node* Edge::getSecond() const
     return m_second;
 }
 
-int Edge::getCost() const
+double Edge::getCost() const
 {
     return m_cost;
 }
