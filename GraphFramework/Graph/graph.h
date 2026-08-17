@@ -14,6 +14,7 @@ class Graph
     std::vector<Node*> m_nodes;
     std::vector<Edge> m_edges;
     bool m_oriented=false;
+
     Matrix m_adjacencyMatrix;
     Matrix m_costMatrix;
 
@@ -27,6 +28,14 @@ class Graph
     std::vector<int> m_distance;
     std::vector<int> m_topologicalOrder;
 
+    // Connected components.
+    std::vector<std::vector<int>> m_connectedComponents;
+
+    // Strongly connected components.
+    std::vector<std::vector<int>> m_stronglyConnectedComponents;
+    std::vector<int> m_componentIndex;
+    std::vector<std::pair<int, int>> m_componentEdges;
+
     static const int cellSize = 50;
 
     void printAdjacencyMatrix() const;
@@ -37,6 +46,7 @@ public:
     Graph& operator=(const Graph& other);
     ~Graph();
 
+    // Graph construction.
     void addNode(QPoint p);
     void addNode(int row, int column, int value);
     void addEdge(Node* first, Node* second);
@@ -44,6 +54,7 @@ public:
     int getEdgeCost(Node* first, Node* second) const;
     void changeState();
 
+    // Labyrinth.
     void readLabyrinth(Matrix& matrix, const std::string& filename);
     void constructLabyrinth(const Matrix& matrix);
     void breadthFirstSearch();
@@ -53,9 +64,17 @@ public:
     void findShortestPaths(Node* source);
     void findPath(Node* exit);
 
+    // Theme 4 - connected components.
+    void findConnectedComponents();
+
+    // Theme 4 - strongly connected components.
+    void findStronglyConnectedComponents();
+
+    // Reset.
     void resetNodeColors();
     void clearResources();
 
+    // Getters.
     std::vector<Node*> getNodes() const;
     std::vector<Edge> getEdges() const;
     Matrix getAdjacencyMatrix() const;
@@ -63,6 +82,10 @@ public:
     std::vector<int> getCurrentPath() const;
     std::vector<int> getDistance() const;
     std::vector<int> getTopologicalOrder() const;
+
+    std::vector<std::vector<int>> getConnectedComponents() const;
+    std::vector<std::vector<int>> getStronglyConnectedComponents() const;
+    std::vector<std::pair<int, int>> getComponentEdges() const;
 
     bool isOriented() const;
 };

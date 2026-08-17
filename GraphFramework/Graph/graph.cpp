@@ -4,6 +4,7 @@
 #include <stack>
 #include <limits>
 #include <algorithm>
+#include <functional>
 
 void Graph::printAdjacencyMatrix() const
 {
@@ -32,7 +33,11 @@ Graph::Graph(const Graph& other)
 	m_parent = other.m_parent;
 	m_distance = other.m_distance;
 	m_topologicalOrder = other.m_topologicalOrder;
-
+	m_connectedComponents = other.m_connectedComponents;
+	m_stronglyConnectedComponents = other.m_stronglyConnectedComponents;
+	m_componentIndex = other.m_componentIndex;
+	m_componentEdges = other.m_componentEdges;
+	
 	for (const auto* node : other.m_nodes)
 	{
 		Node* newNode = new Node(node->getIndex(), node->getCoord());
@@ -102,6 +107,10 @@ Graph& Graph::operator=(const Graph& other)
 	m_parent = other.m_parent;
 	m_distance = other.m_distance;
 	m_topologicalOrder = other.m_topologicalOrder;
+	m_connectedComponents = other.m_connectedComponents;
+	m_stronglyConnectedComponents = other.m_stronglyConnectedComponents;
+	m_componentIndex = other.m_componentIndex;
+	m_componentEdges = other.m_componentEdges;
 
 	for (const auto* node : other.m_nodes)
 	{
@@ -364,6 +373,11 @@ void Graph::changeState()
 			m_costMatrix[second][first] = edge.getCost();
 		}
 	}
+
+	m_connectedComponents.clear();
+	m_stronglyConnectedComponents.clear();
+	m_componentIndex.clear();
+	m_componentEdges.clear();
 
 	printAdjacencyMatrix();
 }
@@ -708,6 +722,186 @@ void Graph::findPath(Node* exit)
 	std::reverse(m_currentPath.begin(), m_currentPath.end());
 }
 
+void Graph::findConnectedComponents()
+{
+	m_connectedComponents.clear();
+
+	if (m_nodes.empty())
+		return;
+
+	std::vector<bool> visited(m_nodes.size(), false);
+
+	const std::vector<QColor> colors =
+	{
+		Qt::red,
+		Qt::green,
+		Qt::blue,
+		Qt::yellow,
+		Qt::cyan,
+		Qt::magenta,
+		Qt::gray,
+		Qt::darkRed,
+		Qt::darkGreen,
+		Qt::darkBlue,
+		Qt::darkYellow,
+		Qt::darkCyan,
+		Qt::darkMagenta,
+		Qt::darkGray,
+		Qt::lightGray
+	};
+
+	int colorIndex = 0;
+
+	for (int start = 0; start < static_cast<int>(m_nodes.size()); ++start)
+	{
+		if (visited[start])
+			continue;
+
+		std::vector<int> component;
+		std::stack<int> stack;
+
+		stack.push(start);
+		visited[start] = true;
+
+		while (!stack.empty())
+		{
+			int current = stack.top();
+			stack.pop();
+
+			component.push_back(current);
+
+			for (int neighbour : m_adjacencyList[current])
+			{
+				if (!visited[neighbour])
+				{
+					visited[neighbour] = true;
+					stack.push(neighbour);
+				}
+			}
+		}
+
+		m_connectedComponents.push_back(component);
+
+		QColor componentColor =
+			colors[colorIndex % colors.size()];
+
+		for (int nodeIndex : component)
+			m_nodes[nodeIndex]->setColor(componentColor);
+
+		++colorIndex;
+	}
+}
+
+void Graph::findStronglyConnectedComponents()
+{
+	m_stronglyConnectedComponents.clear();
+	m_componentIndex.clear();
+	m_componentEdges.clear();
+
+	if (m_nodes.empty())
+		return;
+
+	const int n = static_cast<int>(m_nodes.size());
+
+	// First DFS: determine finishing times.
+	std::vector<bool> visited(n, false);
+	std::vector<int> finishingOrder;
+
+	std::function<void(int)> dfs = [&](int node)
+		{
+			visited[node] = true;
+
+			for (int neighbour : m_adjacencyList[node])
+			{
+				if (!visited[neighbour])
+					dfs(neighbour);
+			}
+
+			finishingOrder.push_back(node);
+		};
+
+	for (int i = 0; i < n; ++i)
+	{
+		if (!visited[i])
+			dfs(i);
+	}
+
+	// Build the transposed adjacency list locally.
+	Matrix transposed(n);
+
+	for (int i = 0; i < n; ++i)
+	{
+		for (int neighbour : m_adjacencyList[i])
+			transposed[neighbour].push_back(i);
+	}
+
+	// Second DFS on the transposed graph.
+	std::fill(visited.begin(), visited.end(), false);
+
+	m_componentIndex.assign(n, -1);
+
+	std::function<void(int, int)> dfsTranspose =
+		[&](int node, int componentIndex)
+		{
+			visited[node] = true;
+			m_componentIndex[node] = componentIndex;
+
+			m_stronglyConnectedComponents.back().push_back(node);
+
+			for (int neighbour : transposed[node])
+			{
+				if (!visited[neighbour])
+					dfsTranspose(neighbour, componentIndex);
+			}
+		};
+
+	int componentIndex = 0;
+
+	for (auto it = finishingOrder.rbegin();
+		it != finishingOrder.rend();
+		++it)
+	{
+		int start = *it;
+
+		if (visited[start])
+			continue;
+
+		m_stronglyConnectedComponents.emplace_back();
+
+		dfsTranspose(start, componentIndex);
+
+		++componentIndex;
+	}
+
+	// Determine the arcs between strongly connected components.
+	for (const auto& edge : m_edges)
+	{
+		int first = edge.getFirst()->getIndex();
+		int second = edge.getSecond()->getIndex();
+
+		int firstComponent = m_componentIndex[first];
+		int secondComponent = m_componentIndex[second];
+
+		if (firstComponent == secondComponent)
+			continue;
+
+		std::pair<int, int> componentEdge =
+		{
+			firstComponent,
+			secondComponent
+		};
+
+		if (std::find(
+			m_componentEdges.begin(),
+			m_componentEdges.end(),
+			componentEdge
+		) == m_componentEdges.end())
+		{
+			m_componentEdges.push_back(componentEdge);
+		}
+	}
+}
+
 void Graph::resetNodeColors()
 {
 	for (auto* node : m_nodes)
@@ -748,12 +942,19 @@ void Graph::clearResources()
 	m_costMatrix.clear();
 	m_adjacencyList.clear();
 	m_coordToNode.clear();
+
 	m_start = nullptr;
 	m_exitNodes.clear();
+
 	m_currentPath.clear();
 	m_parent.clear();
 	m_distance.clear();
 	m_topologicalOrder.clear();
+
+	m_connectedComponents.clear();
+	m_stronglyConnectedComponents.clear();
+	m_componentIndex.clear();
+	m_componentEdges.clear();
 }
 
 std::vector<Node*> Graph::getNodes() const
@@ -789,6 +990,21 @@ std::vector<int> Graph::getDistance() const
 std::vector<int> Graph::getTopologicalOrder() const
 {
 	return m_topologicalOrder;
+}
+
+std::vector<std::vector<int>> Graph::getConnectedComponents() const
+{
+	return m_connectedComponents;
+}
+
+std::vector<std::vector<int>> Graph::getStronglyConnectedComponents() const
+{
+	return m_stronglyConnectedComponents;
+}
+
+std::vector<std::pair<int, int>> Graph::getComponentEdges() const
+{
+	return m_componentEdges;
 }
 
 bool Graph::isOriented() const
