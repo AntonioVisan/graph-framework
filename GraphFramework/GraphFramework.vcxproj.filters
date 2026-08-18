@@ -41,6 +41,9 @@
     <ClCompile Include="KDTree\kdtree.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="UnionFind\unionfind.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="MainWindow\mainwindow.ui">
@@ -63,6 +66,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="KDTree\kdtree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UnionFind\unionfind.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

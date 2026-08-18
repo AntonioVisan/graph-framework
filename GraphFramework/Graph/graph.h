@@ -9,6 +9,7 @@
 
 using Matrix = std::vector<std::vector<int>>;
 using CostMatrix = std::vector<std::vector<double>>;
+using EdgeMatrix = std::vector<std::vector<Edge>>;
 
 class Graph
 {
@@ -45,6 +46,16 @@ class Graph
     std::vector<int> m_componentIndex;
     std::vector<std::pair<int, int>> m_componentEdges;
 
+    // Theme 6 - complete graph and distance matrix.
+    CostMatrix m_distanceMatrix;
+    EdgeMatrix m_completeGraph;
+
+    // Theme 6 - Minimum Spanning Tree.
+    std::vector<std::vector<int>> m_MSTAdjacencyList;
+
+    // Number of edges in the graph loaded from the input file.
+    int m_initialEdgeCount = 0;
+
     static const int cellSize = 50;
 
     void printAdjacencyMatrix() const;
@@ -59,14 +70,50 @@ public:
     void addNode(QPoint p);
     void addNode(int row, int column, int value);
     void addNode(int id, double longitude, double latitude);
+    void addNode(
+        const std::string& name,
+        double latitude,
+        double longitude
+    );
+
     void addEdge(Node* first, Node* second);
+    void addEdge(
+        int from,
+        int to,
+        double length
+    );
+
     void setEdgeCost(Node* first, Node* second, double cost);
     double getEdgeCost(Node* first, Node* second) const;
+
     void changeState();
     void loadFromXML(const std::string& filename);
 
+    // Theme 6 - input and graph algorithms.
+    void loadFromTXT(const std::string& filename);
+    bool isConnected();
+    void initDistanceMatrix();
+    void floydWarshall();
+    void buildCompleteGraphFromDistances();
+    void buildMSTAdjacencyList(
+        const std::vector<Edge>& mst,
+        int nrNodes
+    );
+    std::vector<Edge> kruskal();
+    void preorderTraverse(
+        int currentNode,
+        int parent,
+        std::vector<int>& path
+    );
+    std::vector<int> travelingSalesmanProblem(
+        const std::vector<Edge>& mst
+    );
+
     // Labyrinth.
-    void readLabyrinth(Matrix& matrix, const std::string& filename);
+    void readLabyrinth(
+        Matrix& matrix,
+        const std::string& filename
+    );  
     void constructLabyrinth(const Matrix& matrix);
     void breadthFirstSearch();
     void depthFirstSearch();
@@ -98,6 +145,11 @@ public:
     std::vector<std::vector<int>> getConnectedComponents() const;
     std::vector<std::vector<int>> getStronglyConnectedComponents() const;
     std::vector<std::pair<int, int>> getComponentEdges() const;
+
+    // Theme 6 - getters.
+    const CostMatrix& getDistanceMatrix() const;
+    const EdgeMatrix& getCompleteGraph() const;
+    int getInitialEdgeCount() const;
 
     bool isOriented() const;
 };

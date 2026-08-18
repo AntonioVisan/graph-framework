@@ -1,6 +1,8 @@
 #include "../Graph/graph.h"
 #include "../XML/rapidxml.hpp"
 #include "../XML/rapidxml_utils.hpp"
+#include "../UnionFind/unionfind.h"
+
 #include <fstream>
 #include <queue>
 #include <stack>
@@ -43,6 +45,10 @@ Graph::Graph(const Graph& other)
 	m_stronglyConnectedComponents = other.m_stronglyConnectedComponents;
 	m_componentIndex = other.m_componentIndex;
 	m_componentEdges = other.m_componentEdges;
+	m_distanceMatrix = other.m_distanceMatrix;
+	m_completeGraph = other.m_completeGraph;
+	m_MSTAdjacencyList = other.m_MSTAdjacencyList;
+	m_initialEdgeCount = other.m_initialEdgeCount;
 
 	for (const auto* node : other.m_nodes)
 	{
@@ -55,6 +61,7 @@ Graph::Graph(const Graph& other)
 			node->getLongitude(),
 			node->getLatitude()
 		);
+		newNode->setName(node->getName());
 
 		m_nodes.push_back(newNode);
 		m_coordToNode[{node->getRow(), node->getColumn()}] = newNode;
@@ -125,6 +132,10 @@ Graph& Graph::operator=(const Graph& other)
 	m_stronglyConnectedComponents = other.m_stronglyConnectedComponents;
 	m_componentIndex = other.m_componentIndex;
 	m_componentEdges = other.m_componentEdges;
+	m_distanceMatrix = other.m_distanceMatrix;
+	m_completeGraph = other.m_completeGraph;
+	m_MSTAdjacencyList = other.m_MSTAdjacencyList;
+	m_initialEdgeCount = other.m_initialEdgeCount;
 
 	for (const auto* node : other.m_nodes)
 	{
@@ -137,6 +148,7 @@ Graph& Graph::operator=(const Graph& other)
 			node->getLongitude(),
 			node->getLatitude()
 		);
+		newNode->setName(node->getName());
 
 		m_nodes.push_back(newNode);
 		m_coordToNode[{node->getRow(), node->getColumn()}] = newNode;
@@ -253,6 +265,32 @@ void Graph::addNode(int id, double longitude, double latitude)
 	m_idToNode[id] = node;
 }
 
+void Graph::addNode(
+	const std::string& name,
+	double latitude,
+	double longitude
+)
+{
+	int index = static_cast<int>(m_nodes.size());
+
+	Node* node = new Node(index, QPoint(0, 0));
+
+	node->setName(name);
+	node->setGeoCoord(longitude, latitude);
+
+	m_nodes.push_back(node);
+
+	m_adjacencyMatrix.resize(m_nodes.size());
+	m_costMatrix.resize(m_nodes.size());
+	m_adjacencyList.resize(m_nodes.size());
+
+	for (auto& row : m_adjacencyMatrix)
+		row.resize(m_nodes.size(), 0);
+
+	for (auto& row : m_costMatrix)
+		row.resize(m_nodes.size(), 0.0);
+}
+
 void Graph::addEdge(Node* first, Node* second)
 {
 	if (!first || !second)
@@ -295,6 +333,47 @@ void Graph::addEdge(Node* first, Node* second)
 	m_edges.push_back(edge);
 
 	printAdjacencyMatrix();
+}
+
+void Graph::addEdge(
+	int from,
+	int to,
+	double length
+)
+{
+	if (from < 0 || to < 0 ||
+		from >= static_cast<int>(m_nodes.size()) ||
+		to >= static_cast<int>(m_nodes.size()))
+	{
+		return;
+	}
+
+	Node* first = m_nodes[from];
+	Node* second = m_nodes[to];
+
+	if (!first || !second)
+		return;
+
+	Edge edge(first, second, length);
+
+	for (const auto& existingEdge : m_edges)
+	{
+		if (edge.equals(existingEdge, false))
+			return;
+	}
+
+	m_edges.push_back(edge);
+
+	m_adjacencyMatrix[from][to] = 1;
+	m_adjacencyMatrix[to][from] = 1;
+
+	m_costMatrix[from][to] = length;
+	m_costMatrix[to][from] = length;
+
+	m_adjacencyList[from].push_back(to);
+	m_adjacencyList[to].push_back(from);
+
+	++m_initialEdgeCount;
 }
 
 void Graph::setEdgeCost(Node* first, Node* second, double cost)
@@ -497,6 +576,275 @@ void Graph::loadFromXML(const std::string& filename)
 			{ second->getIndex(), length }
 		);
 	}
+}
+
+void Graph::loadFromTXT(const std::string& filename)
+{
+	clearResources();
+
+	m_oriented = false;
+	m_isMap = false;
+
+	std::ifstream fin(filename);
+
+	if (!fin.is_open())
+		return;
+
+	int nrNodes;
+	fin >> nrNodes;
+
+	for (int i = 0; i < nrNodes; ++i)
+	{
+		std::string name;
+		double latitude;
+		double longitude;
+
+		fin >> name >> latitude >> longitude;
+
+		addNode(name, latitude, longitude);
+	}
+
+	int nrEdges;
+	fin >> nrEdges;
+
+	for (int i = 0; i < nrEdges; ++i)
+	{
+		int from;
+		int to;
+		double length;
+
+		fin >> from >> to >> length;
+
+		addEdge(from, to, length);
+	}
+}
+
+bool Graph::isConnected()
+{
+	int nrNodes = static_cast<int>(m_nodes.size());
+
+	if (nrNodes == 0 || nrNodes == 1)
+		return true;
+
+	std::vector<bool> visited(nrNodes, false);
+	std::stack<int> stack;
+
+	stack.push(0);
+	visited[0] = true;
+
+	while (!stack.empty())
+	{
+		int current = stack.top();
+		stack.pop();
+
+		for (int neighbour : m_adjacencyList[current])
+		{
+			if (!visited[neighbour])
+			{
+				visited[neighbour] = true;
+				stack.push(neighbour);
+			}
+		}
+	}
+
+	for (bool nodeVisited : visited)
+	{
+		if (!nodeVisited)
+			return false;
+	}
+
+	return true;
+}
+
+void Graph::initDistanceMatrix()
+{
+	constexpr double INF =
+		std::numeric_limits<double>::infinity();
+
+	int nrNodes = static_cast<int>(m_nodes.size());
+
+	m_distanceMatrix.assign(
+		nrNodes,
+		std::vector<double>(nrNodes, INF)
+	);
+
+	for (int i = 0; i < nrNodes; ++i)
+	{
+		m_distanceMatrix[i][i] = 0.0;
+
+		for (int j = 0; j < nrNodes; ++j)
+		{
+			if (m_adjacencyMatrix[i][j])
+				m_distanceMatrix[i][j] = m_costMatrix[i][j];
+		}
+	}
+}
+
+void Graph::floydWarshall()
+{
+	initDistanceMatrix();
+
+	int nrNodes = static_cast<int>(m_nodes.size());
+
+	for (int k = 0; k < nrNodes; ++k)
+	{
+		for (int i = 0; i < nrNodes; ++i)
+		{
+			for (int j = 0; j < nrNodes; ++j)
+			{
+				if (m_distanceMatrix[i][k] ==
+					std::numeric_limits<double>::infinity())
+					continue;
+
+				if (m_distanceMatrix[k][j] ==
+					std::numeric_limits<double>::infinity())
+					continue;
+
+				if (m_distanceMatrix[i][j] >
+					m_distanceMatrix[i][k] +
+					m_distanceMatrix[k][j])
+				{
+					m_distanceMatrix[i][j] =
+						m_distanceMatrix[i][k] +
+						m_distanceMatrix[k][j];
+				}
+			}
+		}
+	}
+}
+
+void Graph::buildCompleteGraphFromDistances()
+{
+	int nrNodes = static_cast<int>(m_nodes.size());
+
+	m_completeGraph.clear();
+	m_completeGraph.resize(nrNodes);
+
+	for (int i = 0; i < nrNodes; ++i)
+	{
+		for (int j = 0; j < nrNodes; ++j)
+		{
+			if (i == j)
+				continue;
+
+			m_completeGraph[i].emplace_back(
+				m_nodes[i],
+				m_nodes[j],
+				m_distanceMatrix[i][j]
+			);
+		}
+	}
+}
+
+void Graph::buildMSTAdjacencyList(
+	const std::vector<Edge>& mst,
+	int nrNodes
+)
+{
+	m_MSTAdjacencyList.clear();
+	m_MSTAdjacencyList.resize(nrNodes);
+
+	for (const auto& edge : mst)
+	{
+		int from = edge.getFrom();
+		int to = edge.getTo();
+
+		m_MSTAdjacencyList[from].push_back(to);
+		m_MSTAdjacencyList[to].push_back(from);
+	}
+}
+
+std::vector<Edge> Graph::kruskal()
+{
+	std::vector<Edge> allEdges;
+	std::vector<Edge> minimumSpanningTree;
+
+	int nrNodes = static_cast<int>(m_nodes.size());
+
+	if (nrNodes == 0)
+		return minimumSpanningTree;
+
+	for (const auto& edges : m_completeGraph)
+	{
+		for (const auto& edge : edges)
+		{
+			allEdges.push_back(edge);
+		}
+	}
+
+	std::sort(
+		allEdges.begin(),
+		allEdges.end(),
+		[](const Edge& e1, const Edge& e2)
+		{
+			return e1.getLength() < e2.getLength();
+		}
+	);
+
+	UnionFind unionFind(nrNodes);
+
+	for (const auto& edge : allEdges)
+	{
+		int from = edge.getFrom();
+		int to = edge.getTo();
+
+		if (unionFind.find(from) != unionFind.find(to))
+		{
+			unionFind.unite(from, to);
+
+			minimumSpanningTree.push_back(edge);
+
+			if (static_cast<int>(
+				minimumSpanningTree.size()
+				) == nrNodes - 1)
+			{
+				break;
+			}
+		}
+	}
+
+	return minimumSpanningTree;
+}
+
+void Graph::preorderTraverse(
+	int currentNode,
+	int parent,
+	std::vector<int>& path
+)
+{
+	path.push_back(currentNode);
+
+	for (int neighbour : m_MSTAdjacencyList[currentNode])
+	{
+		if (neighbour != parent)
+		{
+			preorderTraverse(
+				neighbour,
+				currentNode,
+				path
+			);
+		}
+	}
+}
+
+std::vector<int> Graph::travelingSalesmanProblem(
+	const std::vector<Edge>& mst
+)
+{
+	int nrNodes = static_cast<int>(m_nodes.size());
+
+	buildMSTAdjacencyList(mst, nrNodes);
+
+	std::vector<int> path;
+
+	if (nrNodes == 0)
+		return path;
+
+	preorderTraverse(0, -1, path);
+
+	path.push_back(0);
+
+	return path;
 }
 
 void Graph::readLabyrinth(Matrix& matrix, const std::string& filename)
@@ -1167,6 +1515,11 @@ void Graph::clearResources()
 	m_stronglyConnectedComponents.clear();
 	m_componentIndex.clear();
 	m_componentEdges.clear();
+	m_distanceMatrix.clear();
+	m_completeGraph.clear();
+	m_MSTAdjacencyList.clear();
+
+	m_initialEdgeCount = 0;
 
 	m_isMap = false;
 }
@@ -1221,7 +1574,23 @@ std::vector<std::pair<int, int>> Graph::getComponentEdges() const
 	return m_componentEdges;
 }
 
+const CostMatrix& Graph::getDistanceMatrix() const
+{
+	return m_distanceMatrix;
+}
+
+const EdgeMatrix& Graph::getCompleteGraph() const
+{
+	return m_completeGraph;
+}
+
+int Graph::getInitialEdgeCount() const
+{
+	return m_initialEdgeCount;
+}
+
 bool Graph::isOriented() const
 {
 	return m_oriented;
 }
+
