@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QInputDialog>
+#include <cmath>
 
 MainWindow::MainWindow(QWidget* parent)
 	: QMainWindow(parent)
@@ -10,9 +11,49 @@ MainWindow::MainWindow(QWidget* parent)
 {
 	ui->setupUi(this);
 	
+	qDebug() << "Main:" << width() << height();
+	qDebug() << "Stacked:" << ui->stackedWidget->width()
+		<< ui->stackedWidget->height();
+	qDebug() << "Map:" << ui->mapPage->width()
+		<< ui->mapPage->height();
+
+	// drawingArea is used by the Graph page.
 	ui->drawingArea->installEventFilter(this);
 
+	// mapPage itself is used as the drawing surface for the Map page.
+	ui->mapPage->installEventFilter(this);
+
 	m_weightedGraph.changeState();
+
+	// Load the map.
+	m_mapGraph.loadFromXML("Data/Luxembourg_Map.xml");
+
+	// Initialize map coordinates and KD-Tree.
+	for (Node* node : m_mapGraph.getNodes())
+	{
+		double latitude = node->getLatitude();
+		double longitude = node->getLongitude();
+
+		if (latitude < m_minLatitude)
+			m_minLatitude = latitude;
+
+		if (latitude > m_maxLatitude)
+			m_maxLatitude = latitude;
+
+		if (longitude < m_minLongitude)
+			m_minLongitude = longitude;
+
+		if (longitude > m_maxLongitude)
+			m_maxLongitude = longitude;
+
+		m_points.emplace_back(
+			node->getIndex(),
+			longitude,
+			latitude
+		);
+	}
+
+	m_tree = new KDTree(m_points);
 
 	// Navigation between application pages.
 	connect(ui->actionGraph, &QAction::triggered, this, [this]()
@@ -21,7 +62,7 @@ MainWindow::MainWindow(QWidget* parent)
 
 			ui->stackedWidget->setCurrentWidget(ui->graphPage);
 
-			update();
+			ui->drawingArea->update();
 		});
 
 	connect(ui->actionWeighted_Graph, &QAction::triggered, this, [this]()
@@ -42,17 +83,28 @@ MainWindow::MainWindow(QWidget* parent)
 			update();
 		});
 
+	connect(ui->actionMap, &QAction::triggered, this, [this]()
+		{
+			m_currentPage = Page::Map;
+
+			ui->stackedWidget->setCurrentWidget(ui->mapPage);
+
+			ui->mapPage->update();
+		});
+
 	m_currentPage = Page::Graph;
 	ui->stackedWidget->setCurrentWidget(ui->graphPage);
 }
 
 MainWindow::~MainWindow()
 {
+	delete m_tree;
 	delete ui;
 }
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
+	// Graph drawing area.
 	if (watched == ui->drawingArea)
 	{
 		if (event->type() == QEvent::MouseButtonPress)
@@ -96,11 +148,83 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 		}
 	}
 
+	// Map page.
+	if (watched == ui->mapPage)
+	{
+		if (event->type() == QEvent::MouseButtonPress)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mousePressEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::MouseButtonRelease)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mouseReleaseEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::MouseMove)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mouseMoveEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::Wheel)
+		{
+			QWheelEvent* wheelEvent =
+				static_cast<QWheelEvent*>(event);
+
+			wheelEvent->accept();
+
+			if (m_currentPage == Page::Map)
+			{
+				if (wheelEvent->angleDelta().y() > 0)
+					m_currentZoom *= 1.1;
+				else
+					m_currentZoom /= 1.1;
+
+				ui->mapPage->update();
+			}
+
+			return true;
+		}
+
+		if (event->type() == QEvent::Paint)
+		{
+			QPainter painter(ui->mapPage);
+
+			drawMap(painter);
+
+			return true;
+		}
+	}
+
 	return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 {
+	// Map page.
+	if (m_currentPage == Page::Map)
+	{
+		if (m->button() == Qt::RightButton)
+			m_isDragging = false;
+
+		return;
+	}
+
 	m_pressedNode = nullptr;
 
 	// Weighted Graph page.
@@ -238,6 +362,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 void MainWindow::paintEvent(QPaintEvent*)
 {
 	QPainter p(this);
+
 	//Draw the weighted graph on the Weighted Graph page.
 	if (m_currentPage == Page::WeightedGraph)
 	{
@@ -373,6 +498,27 @@ void MainWindow::paintEvent(QPaintEvent*)
 
 void MainWindow::mouseMoveEvent(QMouseEvent* m)
 {
+	// Map page.
+	if (m_currentPage == Page::Map)
+	{
+		if (m_isDragging)
+		{
+			QPointF delta =
+				m->position() - m_lastMousePosition;
+
+			m_offsetX -= delta.x();
+			m_offsetY -= delta.y();
+
+			m_lastMousePosition =
+				m->position();
+
+			ui->mapPage->update();
+		}
+
+		return;
+	}
+
+	// Weighted Graph page.
 	if (m_currentPage == Page::WeightedGraph)
 	{
 		if (m_weightedPressedNode)
@@ -480,6 +626,96 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 
 void MainWindow::mousePressEvent(QMouseEvent* m)
 {
+	// Map page.
+	if (m_currentPage == Page::Map)
+	{
+		if (m->button() == Qt::RightButton)
+		{
+			m_isDragging = true;
+			m_lastMousePosition = m->position();
+		}
+
+		if (m->button() == Qt::LeftButton)
+		{
+			double clickLongitude =
+				m_minLongitude +
+				(m->position().x() + m_offsetX) /
+				(ui->mapPage->width() * m_currentZoom) *
+				(m_maxLongitude - m_minLongitude);
+
+			double clickLatitude =
+				m_minLatitude +
+				(ui->mapPage->height() -
+					(m->position().y() + m_offsetY)) /
+				(ui->mapPage->height() * m_currentZoom) *
+				(m_maxLatitude - m_minLatitude);
+
+			int nearestNodeID =
+				m_tree->FindNearest(
+					clickLongitude,
+					clickLatitude
+				);
+
+			if (m_selectedNode1 == -1)
+			{
+				m_selectedNode1 = nearestNodeID;
+			}
+			else if (m_selectedNode2 == -1)
+			{
+				m_selectedNode2 = nearestNodeID;
+
+				Node* startNode = nullptr;
+				Node* finalNode = nullptr;
+
+				for (Node* node : m_mapGraph.getNodes())
+				{
+					if (node->getIndex() == m_selectedNode1)
+						startNode = node;
+
+					if (node->getIndex() == m_selectedNode2)
+						finalNode = node;
+				}
+
+				if (startNode != nullptr && finalNode != nullptr)
+				{
+					m_mapGraph.dijkstra(startNode, finalNode);
+
+					m_mapGraph.findPath(finalNode);
+
+					std::vector<int> path =
+						m_mapGraph.getCurrentPath();
+
+					if (path.empty())
+					{
+						QMessageBox::critical(
+							this,
+							"No Path Found",
+							"There is no path from the starting point to the destination point!"
+						);
+					}
+					else
+					{
+						QMessageBox::information(
+							this,
+							"Node Selection",
+							"The two points have been selected. "
+							"The shortest path between the two points is now displayed."
+						);
+					}
+				}
+			}
+			else
+			{
+				m_selectedNode1 = nearestNodeID;
+				m_selectedNode2 = -1;
+			}
+
+			ui->mapPage->update();
+		}
+
+		return;
+	}
+
 	if (m_currentPage == Page::WeightedGraph)
 	{
 		if (m->button() == Qt::MiddleButton)
@@ -706,6 +942,151 @@ void MainWindow::drawGraphContent(QPainter& p)
 	}
 }
 
+void MainWindow::drawMap(QPainter& painter)
+{
+	qDebug() << "Map size:"
+		<< ui->mapPage->width()
+		<< ui->mapPage->height();
+
+	// Draw graph edges.
+	for (const auto& edge : m_mapGraph.getEdges())
+	{
+		Node* firstNode = edge.getFirst();
+		Node* secondNode = edge.getSecond();
+
+		QPointF firstPoint = mapToWindow(
+			firstNode->getLongitude(),
+			firstNode->getLatitude(),
+			ui->mapPage->width(),
+			ui->mapPage->height(),
+			m_currentZoom
+		);
+
+		QPointF secondPoint = mapToWindow(
+			secondNode->getLongitude(),
+			secondNode->getLatitude(),
+			ui->mapPage->width(),
+			ui->mapPage->height(),
+			m_currentZoom
+		);
+
+		painter.drawLine(firstPoint, secondPoint);
+	}
+
+	// Draw first selected node.
+	if (m_selectedNode1 != -1)
+	{
+		Node* node = nullptr;
+
+		for (Node* n : m_mapGraph.getNodes())
+		{
+			if (n->getIndex() == m_selectedNode1)
+			{
+				node = n;
+				break;
+			}
+		}
+
+		if (node != nullptr)
+		{
+			QPointF point = mapToWindow(
+				node->getLongitude(),
+				node->getLatitude(),
+				ui->mapPage->width(),
+				ui->mapPage->height(),
+				m_currentZoom
+			);
+
+			QPen pen(Qt::blue);
+			pen.setWidth(5);
+			painter.setPen(pen);
+
+			painter.drawPoint(point);
+		}
+	}
+
+	// Draw second selected node.
+	if (m_selectedNode2 != -1)
+	{
+		Node* node = nullptr;
+
+		for (Node* n : m_mapGraph.getNodes())
+		{
+			if (n->getIndex() == m_selectedNode2)
+			{
+				node = n;
+				break;
+			}
+		}
+
+		if (node != nullptr)
+		{
+			QPointF point = mapToWindow(
+				node->getLongitude(),
+				node->getLatitude(),
+				ui->mapPage->width(),
+				ui->mapPage->height(),
+				m_currentZoom
+			);
+
+			QPen pen(Qt::red);
+			pen.setWidth(5);
+			painter.setPen(pen);
+
+			painter.drawPoint(point);
+		}
+	}
+
+	// Draw shortest path.
+	std::vector<int> path =
+		m_mapGraph.getCurrentPath();
+
+	if (path.size() >= 2)
+	{
+		QPen pen(Qt::green);
+		pen.setWidth(3);
+		painter.setPen(pen);
+
+		for (int i = 0;
+			i < static_cast<int>(path.size()) - 1;
+			++i)
+		{
+			Node* firstNode = nullptr;
+			Node* secondNode = nullptr;
+
+			for (Node* node : m_mapGraph.getNodes())
+			{
+				if (node->getIndex() == path[i])
+					firstNode = node;
+
+				if (node->getIndex() == path[i + 1])
+					secondNode = node;
+			}
+
+			if (firstNode == nullptr || secondNode == nullptr)
+				continue;
+
+			QPointF firstPoint = mapToWindow(
+				firstNode->getLongitude(),
+				firstNode->getLatitude(),
+				ui->mapPage->width(),
+				ui->mapPage->height(),
+				m_currentZoom
+			);
+
+			QPointF secondPoint = mapToWindow(
+				secondNode->getLongitude(),
+				secondNode->getLatitude(),
+				ui->mapPage->width(),
+				ui->mapPage->height(),
+				m_currentZoom
+			);
+
+			painter.drawLine(firstPoint, secondPoint);
+		}
+	}
+}
+
 void MainWindow::drawArrow(QPainter& p, QPoint start, QPoint end)
 {
 	const double nodeRadius = 10.0;
@@ -746,6 +1127,30 @@ void MainWindow::drawArrow(QPainter& p, QPoint start, QPoint end)
 
 	p.setBrush(Qt::red);
 	p.drawPolygon(arrowHead);
+}
+
+QPointF MainWindow::mapToWindow(
+	double longitude,
+	double latitude,
+	int width,
+	int height,
+	double zoom
+) const
+{
+	double x =
+		(longitude - m_minLongitude) /
+		(m_maxLongitude - m_minLongitude) *
+		width * zoom -
+		m_offsetX;
+
+	double y =
+		height -
+		((latitude - m_minLatitude) /
+			(m_maxLatitude - m_minLatitude) *
+			height * zoom) -
+		m_offsetY;
+
+	return QPointF(x, y);
 }
 
 // Switch between oriented and non-oriented graph modes.

@@ -28,9 +28,13 @@ Graph::Graph() = default;
 Graph::Graph(const Graph& other)
 {
 	m_oriented = other.m_oriented;
+	m_isMap = other.m_isMap;
+
 	m_adjacencyMatrix = other.m_adjacencyMatrix;
 	m_costMatrix = other.m_costMatrix;
 	m_adjacencyList = other.m_adjacencyList;
+	m_mapAdjacencyList = other.m_mapAdjacencyList;
+
 	m_currentPath = other.m_currentPath;
 	m_parent = other.m_parent;
 	m_distance = other.m_distance;
@@ -106,9 +110,13 @@ Graph& Graph::operator=(const Graph& other)
 	clearResources();
 
 	m_oriented = other.m_oriented;
+	m_isMap = other.m_isMap;
+
 	m_adjacencyMatrix = other.m_adjacencyMatrix;
 	m_costMatrix = other.m_costMatrix;
 	m_adjacencyList = other.m_adjacencyList;
+	m_mapAdjacencyList = other.m_mapAdjacencyList;
+
 	m_currentPath = other.m_currentPath;
 	m_parent = other.m_parent;
 	m_distance = other.m_distance;
@@ -312,7 +320,12 @@ void Graph::setEdgeCost(Node* first, Node* second, double cost)
 			edge.getSecond() == second)
 		{
 			edge.setCost(cost);
+
 			m_costMatrix[firstIndex][secondIndex] = cost;
+
+			if (!m_oriented)
+				m_costMatrix[secondIndex][firstIndex] = cost;
+
 			return;
 		}
 	}
@@ -340,6 +353,9 @@ double Graph::getEdgeCost(Node* first, Node* second) const
 
 void Graph::changeState()
 {
+	if (m_isMap)
+		return;
+
 	m_oriented = !m_oriented;
 
 	if (!m_oriented)
@@ -407,7 +423,8 @@ void Graph::loadFromXML(const std::string& filename)
 {
 	clearResources();
 
-	m_oriented = false;
+	m_oriented = true;
+	m_isMap = true;
 
 	rapidxml::file<> xmlFile(filename.c_str());
 
@@ -445,18 +462,8 @@ void Graph::loadFromXML(const std::string& filename)
 		addNode(id, longitude, latitude);
 	}
 
-	// Initialize graph structures.
-	m_adjacencyMatrix.assign(
-		m_nodes.size(),
-		std::vector<int>(m_nodes.size(), 0)
-	);
-
-	m_costMatrix.assign(
-		m_nodes.size(),
-		std::vector<double>(m_nodes.size(), 0.0)
-	);
-
-	m_adjacencyList.assign(m_nodes.size(), {});
+	// Initialize map adjacency list.
+	m_mapAdjacencyList.assign(m_nodes.size(), {});
 
 	// Load arcs.
 	for (rapidxml::xml_node<>* arc = arcs->first_node("arc");
@@ -484,8 +491,11 @@ void Graph::loadFromXML(const std::string& filename)
 		Node* first = firstIt->second;
 		Node* second = secondIt->second;
 
-		addEdge(first, second);
-		setEdgeCost(first, second, length);
+		m_edges.emplace_back(first, second, length);
+
+		m_mapAdjacencyList[first->getIndex()].push_back(
+			{ second->getIndex(), length }
+		);
 	}
 }
 
@@ -833,22 +843,44 @@ void Graph::dijkstra(Node* source, Node* target)
 		if (current == targetIndex)
 			return;
 
-		for (int neighbour : m_adjacencyList[current])
+		if (m_isMap)
 		{
-			double cost = m_costMatrix[current][neighbour];
-
-			if (!visited[neighbour] &&
-				distanceNode + cost < m_distance[neighbour])
+			for (const auto& [neighbour, cost] : m_mapAdjacencyList[current])
 			{
-				m_distance[neighbour] =
-					distanceNode + cost;
+				if (!visited[neighbour] &&
+					distanceNode + cost < m_distance[neighbour])
+				{
+					m_distance[neighbour] =
+						distanceNode + cost;
 
-				m_parent[neighbour] = current;
+					m_parent[neighbour] = current;
 
-				pq.push({
-					m_distance[neighbour],
-					neighbour
-					});
+					pq.push({
+						m_distance[neighbour],
+						neighbour
+						});
+				}
+			}
+		}
+		else
+		{
+			for (int neighbour : m_adjacencyList[current])
+			{
+				double cost = m_costMatrix[current][neighbour];
+
+				if (!visited[neighbour] &&
+					distanceNode + cost < m_distance[neighbour])
+				{
+					m_distance[neighbour] =
+						distanceNode + cost;
+
+					m_parent[neighbour] = current;
+
+					pq.push({
+						m_distance[neighbour],
+						neighbour
+						});
+				}
 			}
 		}
 	}
@@ -1118,6 +1150,8 @@ void Graph::clearResources()
 	m_adjacencyMatrix.clear();
 	m_costMatrix.clear();
 	m_adjacencyList.clear();
+	m_mapAdjacencyList.clear();
+
 	m_coordToNode.clear();
 	m_idToNode.clear();
 
@@ -1133,6 +1167,8 @@ void Graph::clearResources()
 	m_stronglyConnectedComponents.clear();
 	m_componentIndex.clear();
 	m_componentEdges.clear();
+
+	m_isMap = false;
 }
 
 std::vector<Node*> Graph::getNodes() const

@@ -14,274 +14,277 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QStackedWidget" name="stackedWidget">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>800</width>
-      <height>401</height>
-     </rect>
-    </property>
-    <widget class="QWidget" name="graphPage">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <widget class="QWidget" name="">
-      <property name="geometry">
-       <rect>
-        <x>0</x>
-        <y>10</y>
-        <width>801</width>
-        <height>381</height>
-       </rect>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QStackedWidget" name="stackedWidget">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="10,0,0">
-       <item>
-        <layout class="QVBoxLayout" name="verticalLayout">
+      <widget class="QWidget" name="graphPage">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>10</y>
+          <width>801</width>
+          <height>381</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_2" stretch="10,0,0">
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,1">
+          <layout class="QVBoxLayout" name="verticalLayout">
            <item>
-            <widget class="QPushButton" name="showAdjacencyListButton">
-             <property name="text">
-              <string>Show Adjacency List</string>
-             </property>
-            </widget>
+            <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,1">
+             <item>
+              <widget class="QPushButton" name="showAdjacencyListButton">
+               <property name="text">
+                <string>Show Adjacency List</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="showConnectedComponentsButton">
+               <property name="text">
+                <string>Show Connected Components</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="resetColorsButton">
+               <property name="text">
+                <string>Reset Colors</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
            <item>
-            <widget class="QPushButton" name="showConnectedComponentsButton">
-             <property name="text">
-              <string>Show Connected Components</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="resetColorsButton">
-             <property name="text">
-              <string>Reset Colors</string>
-             </property>
-            </widget>
+            <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,1,1">
+             <item>
+              <widget class="QPushButton" name="showStronglyConnectedComponentsButton">
+               <property name="text">
+                <string>Show Strongly Connected Components</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="saveGraphImageButton">
+               <property name="text">
+                <string>Save Graph as Image</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="restoreInitialGraphButton">
+               <property name="text">
+                <string>Restore Initial Graph</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
           </layout>
          </item>
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,1,1">
+          <widget class="QWidget" name="drawingArea" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>200</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,1">
            <item>
-            <widget class="QPushButton" name="showStronglyConnectedComponentsButton">
+            <widget class="QRadioButton" name="undirectedRadioButton">
              <property name="text">
-              <string>Show Strongly Connected Components</string>
+              <string>Unoriented</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="saveGraphImageButton">
+            <widget class="QRadioButton" name="directedRadioButton">
              <property name="text">
-              <string>Save Graph as Image</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="restoreInitialGraphButton">
-             <property name="text">
-              <string>Restore Initial Graph</string>
+              <string>Oriented</string>
              </property>
             </widget>
            </item>
           </layout>
          </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QWidget" name="drawingArea" native="true">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>200</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,1">
-         <item>
-          <widget class="QRadioButton" name="undirectedRadioButton">
-           <property name="text">
-            <string>Unoriented</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="directedRadioButton">
-           <property name="text">
-            <string>Oriented</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-      </layout>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="mapPage"/>
+      <widget class="QWidget" name="labyrinthPage">
+       <widget class="QPushButton" name="openFileButton">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>10</y>
+          <width>80</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Open File</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="drawLabyrinthButton">
+        <property name="geometry">
+         <rect>
+          <x>350</x>
+          <y>10</y>
+          <width>101</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Draw Labyrinth</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="drawGraphButton">
+        <property name="geometry">
+         <rect>
+          <x>710</x>
+          <y>0</y>
+          <width>80</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Draw Graph</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="findGraphPathsButton">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>340</y>
+          <width>131</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Find Graph Exit Paths</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="clearPathsButton">
+        <property name="geometry">
+         <rect>
+          <x>700</x>
+          <y>340</y>
+          <width>91</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Clear Exit Paths</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="clearDrawingButton">
+        <property name="geometry">
+         <rect>
+          <x>700</x>
+          <y>370</y>
+          <width>91</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Clear Drawing</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="findLabyrinthPathsButton">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>370</y>
+          <width>141</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Find Labyrinth Exit Paths</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="weightedGraphPage">
+       <widget class="QPushButton" name="addEdgeWeightButton">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>360</y>
+          <width>111</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Add Edge Weight</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="showEdgeWeightsButton">
+        <property name="geometry">
+         <rect>
+          <x>210</x>
+          <y>360</y>
+          <width>121</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Show Edge Weights</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="findShortestPathsButton">
+        <property name="geometry">
+         <rect>
+          <x>460</x>
+          <y>360</y>
+          <width>111</width>
+          <height>31</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Find Shortest Paths</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="topologicalSortButton">
+        <property name="geometry">
+         <rect>
+          <x>680</x>
+          <y>360</y>
+          <width>101</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Topological Sort</string>
+        </property>
+       </widget>
+      </widget>
      </widget>
-    </widget>
-    <widget class="QWidget" name="labyrinthPage">
-     <widget class="QPushButton" name="openFileButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>10</y>
-        <width>80</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Open File</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="drawLabyrinthButton">
-      <property name="geometry">
-       <rect>
-        <x>350</x>
-        <y>10</y>
-        <width>101</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Draw Labyrinth</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="drawGraphButton">
-      <property name="geometry">
-       <rect>
-        <x>710</x>
-        <y>0</y>
-        <width>80</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Draw Graph</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="findGraphPathsButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>340</y>
-        <width>131</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Find Graph Exit Paths</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="clearPathsButton">
-      <property name="geometry">
-       <rect>
-        <x>700</x>
-        <y>340</y>
-        <width>91</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Clear Exit Paths</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="clearDrawingButton">
-      <property name="geometry">
-       <rect>
-        <x>700</x>
-        <y>370</y>
-        <width>91</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Clear Drawing</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="findLabyrinthPathsButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>370</y>
-        <width>141</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Find Labyrinth Exit Paths</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QWidget" name="weightedGraphPage">
-     <widget class="QPushButton" name="addEdgeWeightButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>360</y>
-        <width>111</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Add Edge Weight</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="showEdgeWeightsButton">
-      <property name="geometry">
-       <rect>
-        <x>210</x>
-        <y>360</y>
-        <width>121</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Show Edge Weights</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="findShortestPathsButton">
-      <property name="geometry">
-       <rect>
-        <x>460</x>
-        <y>360</y>
-        <width>111</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Find Shortest Paths</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="topologicalSortButton">
-      <property name="geometry">
-       <rect>
-        <x>680</x>
-        <y>360</y>
-        <width>101</width>
-        <height>24</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Topological Sort</string>
-      </property>
-     </widget>
-    </widget>
-   </widget>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -306,6 +309,7 @@
    <addaction name="actionGraph"/>
    <addaction name="actionWeighted_Graph"/>
    <addaction name="actionLabyrinth"/>
+   <addaction name="actionMap"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionGraph">
@@ -327,6 +331,14 @@
   <action name="actionWeighted_Graph">
    <property name="text">
     <string>Weighted Graph</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionMap">
+   <property name="text">
+    <string>Map</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

@@ -20,6 +20,12 @@ class Graph
     CostMatrix m_costMatrix;
 
     std::vector<std::vector<int>> m_adjacencyList;
+    
+    // Map-specific adjacency list: neighbour + edge cost.
+    std::vector<std::vector<std::pair<int, double>>> m_mapAdjacencyList;
+
+    // True when the graph was loaded from an XML map.
+    bool m_isMap = false;
 
     std::map<std::pair<int, int>, Node*> m_coordToNode;
     std::map<int, Node*> m_idToNode;
