@@ -1,7 +1,9 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+
 #include <QInputDialog>
 #include <cmath>
+#include <algorithm>
 
 MainWindow::MainWindow(QWidget* parent)
 	: QMainWindow(parent)
@@ -10,18 +12,14 @@ MainWindow::MainWindow(QWidget* parent)
 	, drawLabyrinth(false)
 {
 	ui->setupUi(this);
-	
-	qDebug() << "Main:" << width() << height();
-	qDebug() << "Stacked:" << ui->stackedWidget->width()
-		<< ui->stackedWidget->height();
-	qDebug() << "Map:" << ui->mapPage->width()
-		<< ui->mapPage->height();
 
 	// drawingArea is used by the Graph page.
 	ui->drawingArea->installEventFilter(this);
 
 	// mapPage itself is used as the drawing surface for the Map page.
 	ui->mapPage->installEventFilter(this);
+
+	ui->travelingSalesmanPage->installEventFilter(this);
 
 	m_weightedGraph.changeState();
 
@@ -54,6 +52,47 @@ MainWindow::MainWindow(QWidget* parent)
 	}
 
 	m_tree = new KDTree(m_points);
+
+	// Theme 6 - Traveling Salesman Problem.
+	m_tspGraph.loadFromTXT("Data/input.txt");
+
+	if (m_tspGraph.getNodes().empty())
+	{
+		QMessageBox::warning(
+			this,
+			"Traveling Salesman Problem",
+			"The TSP graph could not be loaded."
+		);
+	}
+	else if (!m_tspGraph.isConnected())
+	{
+		QMessageBox::warning(
+			this,
+			"Traveling Salesman Problem",
+			"The initial graph is not connected."
+		);
+	}
+	else
+	{
+		computeBoundingBox();
+	}
+
+	m_stepTimerMST = new QTimer(this);
+	m_stepTimerTSP = new QTimer(this);
+
+	connect(
+		m_stepTimerMST,
+		&QTimer::timeout,
+		this,
+		&MainWindow::onNextMstStep
+	);
+
+	connect(
+		m_stepTimerTSP,
+		&QTimer::timeout,
+		this,
+		&MainWindow::onNextTspStep
+	);
 
 	// Navigation between application pages.
 	connect(ui->actionGraph, &QAction::triggered, this, [this]()
@@ -91,6 +130,22 @@ MainWindow::MainWindow(QWidget* parent)
 
 			ui->mapPage->update();
 		});
+
+	connect(
+		ui->actionTraveling_Salesman,
+		&QAction::triggered,
+		this,
+		[this]()
+		{
+			m_currentPage = Page::TravelingSalesman;
+
+			ui->stackedWidget->setCurrentWidget(
+				ui->travelingSalesmanPage
+			);
+
+			ui->travelingSalesmanPage->update();
+		}
+	);
 
 	m_currentPage = Page::Graph;
 	ui->stackedWidget->setCurrentWidget(ui->graphPage);
@@ -191,9 +246,9 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 			if (m_currentPage == Page::Map)
 			{
 				if (wheelEvent->angleDelta().y() > 0)
-					m_currentZoom *= 1.1;
+					m_mapZoom *= 1.1;
 				else
-					m_currentZoom /= 1.1;
+					m_mapZoom /= 1.1;
 
 				ui->mapPage->update();
 			}
@@ -211,6 +266,78 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 		}
 	}
 
+	// Traveling Salesman page.
+	if (watched == ui->travelingSalesmanPage)
+	{
+		if (event->type() == QEvent::MouseButtonPress)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mousePressEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::MouseButtonRelease)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mouseReleaseEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::MouseMove)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mouseMoveEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::Wheel)
+		{
+			QWheelEvent* wheelEvent =
+				static_cast<QWheelEvent*>(event);
+
+			if (wheelEvent->angleDelta().y() > 0)
+				m_tspZoom *= 1.1;
+			else
+				m_tspZoom /= 1.1;
+
+			wheelEvent->accept();
+
+			ui->travelingSalesmanPage->update();
+
+			return true;
+		}
+
+		if (event->type() == QEvent::Paint)
+		{
+			QPainter painter(ui->travelingSalesmanPage);
+
+			if (m_currentPage == Page::TravelingSalesman)
+			{
+				if (m_drawTravellingSalesmanProblem)
+					drawTravelingSalesmanProblem(painter);
+				else if (m_drawMinimumSpanningTree)
+					drawMinimumSpanningTree(painter);
+				else if (m_drawCompleteGraph)
+					drawCompleteGraph(painter);
+				else
+					drawInitialGraph(painter);
+
+				drawNodes(painter);
+			}
+
+			return true;
+		}
+	}
+
 	return QMainWindow::eventFilter(watched, event);
 }
 
@@ -218,6 +345,14 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 {
 	// Map page.
 	if (m_currentPage == Page::Map)
+	{
+		if (m->button() == Qt::RightButton)
+			m_isDragging = false;
+
+		return;
+	}
+
+	if (m_currentPage == Page::TravelingSalesman)
 	{
 		if (m->button() == Qt::RightButton)
 			m_isDragging = false;
@@ -518,6 +653,25 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 		return;
 	}
 
+	if (m_currentPage == Page::TravelingSalesman)
+	{
+		if (m_isDragging)
+		{
+			QPointF delta =
+				m->position() - m_lastMousePosition;
+
+			m_offsetX -= delta.x();
+			m_offsetY -= delta.y();
+
+			m_lastMousePosition =
+				m->position();
+
+			ui->travelingSalesmanPage->update();
+		}
+
+		return;
+	}
+
 	// Weighted Graph page.
 	if (m_currentPage == Page::WeightedGraph)
 	{
@@ -640,14 +794,14 @@ void MainWindow::mousePressEvent(QMouseEvent* m)
 			double clickLongitude =
 				m_minLongitude +
 				(m->position().x() + m_offsetX) /
-				(ui->mapPage->width() * m_currentZoom) *
+				(ui->mapPage->width() * m_mapZoom) *
 				(m_maxLongitude - m_minLongitude);
 
 			double clickLatitude =
 				m_minLatitude +
 				(ui->mapPage->height() -
 					(m->position().y() + m_offsetY)) /
-				(ui->mapPage->height() * m_currentZoom) *
+				(ui->mapPage->height() * m_mapZoom) *
 				(m_maxLatitude - m_minLatitude);
 
 			int nearestNodeID =
@@ -711,6 +865,17 @@ void MainWindow::mousePressEvent(QMouseEvent* m)
 			}
 
 			ui->mapPage->update();
+		}
+
+		return;
+	}
+
+	if (m_currentPage == Page::TravelingSalesman)
+	{
+		if (m->button() == Qt::RightButton)
+		{
+			m_isDragging = true;
+			m_lastMousePosition = m->position();
 		}
 
 		return;
@@ -944,10 +1109,6 @@ void MainWindow::drawGraphContent(QPainter& p)
 
 void MainWindow::drawMap(QPainter& painter)
 {
-	qDebug() << "Map size:"
-		<< ui->mapPage->width()
-		<< ui->mapPage->height();
-
 	// Draw graph edges.
 	for (const auto& edge : m_mapGraph.getEdges())
 	{
@@ -959,7 +1120,7 @@ void MainWindow::drawMap(QPainter& painter)
 			firstNode->getLatitude(),
 			ui->mapPage->width(),
 			ui->mapPage->height(),
-			m_currentZoom
+			m_mapZoom
 		);
 
 		QPointF secondPoint = mapToWindow(
@@ -967,7 +1128,7 @@ void MainWindow::drawMap(QPainter& painter)
 			secondNode->getLatitude(),
 			ui->mapPage->width(),
 			ui->mapPage->height(),
-			m_currentZoom
+			m_mapZoom
 		);
 
 		painter.drawLine(firstPoint, secondPoint);
@@ -994,7 +1155,7 @@ void MainWindow::drawMap(QPainter& painter)
 				node->getLatitude(),
 				ui->mapPage->width(),
 				ui->mapPage->height(),
-				m_currentZoom
+				m_mapZoom
 			);
 
 			QPen pen(Qt::blue);
@@ -1026,7 +1187,7 @@ void MainWindow::drawMap(QPainter& painter)
 				node->getLatitude(),
 				ui->mapPage->width(),
 				ui->mapPage->height(),
-				m_currentZoom
+				m_mapZoom
 			);
 
 			QPen pen(Qt::red);
@@ -1071,7 +1232,7 @@ void MainWindow::drawMap(QPainter& painter)
 				firstNode->getLatitude(),
 				ui->mapPage->width(),
 				ui->mapPage->height(),
-				m_currentZoom
+				m_mapZoom
 			);
 
 			QPointF secondPoint = mapToWindow(
@@ -1079,7 +1240,7 @@ void MainWindow::drawMap(QPainter& painter)
 				secondNode->getLatitude(),
 				ui->mapPage->width(),
 				ui->mapPage->height(),
-				m_currentZoom
+				m_mapZoom
 			);
 
 			painter.drawLine(firstPoint, secondPoint);
@@ -1151,6 +1312,401 @@ QPointF MainWindow::mapToWindow(
 		m_offsetY;
 
 	return QPointF(x, y);
+}
+
+QPointF MainWindow::tspMapToWindow(
+	double longitude,
+	double latitude,
+	int width,
+	int height,
+	double zoom
+) const
+{
+	const double padding = 65.0;
+
+	double longitudeRange =
+		m_tspMaxLongitude -
+		m_tspMinLongitude;
+
+	double latitudeRange =
+		m_tspMaxLatitude -
+		m_tspMinLatitude;
+
+	if (longitudeRange == 0.0)
+		longitudeRange = 1.0;
+
+	if (latitudeRange == 0.0)
+		latitudeRange = 1.0;
+
+	double x =
+		(longitude - m_tspMinLongitude) /
+		longitudeRange *
+		(width - 2 * padding) *
+		zoom +
+		padding -
+		m_offsetX;
+
+	double y =
+		height -
+		(
+			(latitude - m_tspMinLatitude) /
+			latitudeRange *
+			(height - 2 * padding) *
+			zoom +
+			padding
+			) -
+		m_offsetY;
+
+	return QPointF(x, y);
+}
+
+void MainWindow::computeBoundingBox()
+{
+	m_tspMinLatitude =
+		std::numeric_limits<double>::max();
+
+	m_tspMaxLatitude =
+		std::numeric_limits<double>::lowest();
+
+	m_tspMinLongitude =
+		std::numeric_limits<double>::max();
+
+	m_tspMaxLongitude =
+		std::numeric_limits<double>::lowest();
+
+	for (Node* node : m_tspGraph.getNodes())
+	{
+		m_tspMinLatitude =
+			std::min(
+				m_tspMinLatitude,
+				node->getLatitude()
+			);
+
+		m_tspMaxLatitude =
+			std::max(
+				m_tspMaxLatitude,
+				node->getLatitude()
+			);
+
+		m_tspMinLongitude =
+			std::min(
+				m_tspMinLongitude,
+				node->getLongitude()
+			);
+
+		m_tspMaxLongitude =
+			std::max(
+				m_tspMaxLongitude,
+				node->getLongitude()
+			);
+	}
+}
+
+void MainWindow::showInitialGraphDistances()
+{
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	const auto edges =
+		m_tspGraph.getEdges();
+
+	QString message;
+
+	message +=
+		QString("Initial graph contains %1 nodes and %2 edges.\n\n")
+		.arg(static_cast<int>(nodes.size()))
+		.arg(m_tspGraph.getInitialEdgeCount());
+
+	message += "Initial graph edges:\n\n";
+
+	for (const auto& edge : edges)
+	{
+		int from = edge.getFrom();
+		int to = edge.getTo();
+
+		message += QString("%1 - %2 : %3 km\n")
+			.arg(QString::fromStdString(
+				nodes[from]->getName()
+			))
+			.arg(QString::fromStdString(
+				nodes[to]->getName()
+			))
+			.arg(edge.getLength());
+	}
+
+	QMessageBox::information(
+		this,
+		"Initial Graph",
+		message
+	);
+}
+
+void MainWindow::showCompleteGraphDistances()
+{
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	const auto& distances =
+		m_tspGraph.getDistanceMatrix();
+
+	QString message;
+
+	int n =
+		static_cast<int>(nodes.size());
+
+	message +=
+		QString("Complete graph contains %1 nodes and %2 edges.\n\n")
+		.arg(n)
+		.arg(n * (n - 1) / 2);
+
+	message += "Complete graph edges:\n\n";
+
+	for (int i = 0; i < n; ++i)
+	{
+		for (int j = i + 1; j < n; ++j)
+		{
+			message +=
+				QString("%1 - %2 : %3 km\n")
+				.arg(QString::fromStdString(
+					nodes[i]->getName()
+				))
+				.arg(QString::fromStdString(
+					nodes[j]->getName()
+				))
+				.arg(QString::number(
+					distances[i][j],
+					'f',
+					0
+				));
+		}
+	}
+
+	QMessageBox::information(
+		this,
+		"Complete Graph Distances",
+		message
+	);
+}
+
+void MainWindow::drawNodes(QPainter& painter)
+{
+	painter.setRenderHint(QPainter::Antialiasing);
+
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	for (const auto* node : nodes)
+	{
+		QPointF point =
+			tspMapToWindow(
+				node->getLongitude(),
+				node->getLatitude(),
+				ui->travelingSalesmanPage->width(),
+				ui->travelingSalesmanPage->height(),
+				m_tspZoom
+			);
+
+		painter.setPen(Qt::black);
+		painter.setBrush(Qt::white);
+
+		painter.drawEllipse(
+			point,
+			7,
+			7
+		);
+
+		painter.drawText(
+			point + QPointF(10, -10),
+			QString::fromStdString(
+				node->getName()
+			)
+		);
+	}
+}
+
+void MainWindow::drawInitialGraph(QPainter& painter)
+{
+	painter.setRenderHint(QPainter::Antialiasing);
+
+	const auto edges =
+		m_tspGraph.getEdges();
+
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	painter.setPen(
+		QPen(Qt::black, 1)
+	);
+
+	for (const auto& edge : edges)
+	{
+		int from = edge.getFrom();
+		int to = edge.getTo();
+
+		QPointF first =
+			tspMapToWindow(
+				nodes[from]->getLongitude(),
+				nodes[from]->getLatitude(),
+				ui->travelingSalesmanPage->width(),
+				ui->travelingSalesmanPage->height(),
+				m_tspZoom
+			);
+
+		QPointF second =
+			tspMapToWindow(
+				nodes[to]->getLongitude(),
+				nodes[to]->getLatitude(),
+				ui->travelingSalesmanPage->width(),
+				ui->travelingSalesmanPage->height(),
+				m_tspZoom
+			);
+
+		painter.drawLine(first, second);
+	}
+}
+
+void MainWindow::drawCompleteGraph(QPainter& painter)
+{
+	painter.setRenderHint(QPainter::Antialiasing);
+
+	const auto& completeGraph =
+		m_tspGraph.getCompleteGraph();
+
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	painter.setPen(
+		QPen(Qt::lightGray, 1)
+	);
+
+	for (int i = 0;
+		i < static_cast<int>(completeGraph.size());
+		++i)
+	{
+		for (const auto& edge : completeGraph[i])
+		{
+			int from = edge.getFrom();
+			int to = edge.getTo();
+
+			if (from >= to)
+				continue;
+
+			QPointF first =
+				tspMapToWindow(
+					nodes[from]->getLongitude(),
+					nodes[from]->getLatitude(),
+					ui->travelingSalesmanPage->width(),
+					ui->travelingSalesmanPage->height(),
+					m_tspZoom
+				);
+
+			QPointF second =
+				tspMapToWindow(
+					nodes[to]->getLongitude(),
+					nodes[to]->getLatitude(),
+					ui->travelingSalesmanPage->width(),
+					ui->travelingSalesmanPage->height(),
+					m_tspZoom
+				);
+
+			painter.drawLine(first, second);
+		}
+	}
+}
+
+void MainWindow::drawMinimumSpanningTree(QPainter& painter)
+{
+	drawCompleteGraph(painter);
+
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	painter.setPen(
+		QPen(Qt::red, 3)
+	);
+
+	for (int i = 0;
+		i < m_currentStep &&
+		i < static_cast<int>(
+			m_minimumSpanningTree.size()
+			);
+		++i)
+	{
+		const Edge& edge =
+			m_minimumSpanningTree[i];
+
+		int from = edge.getFrom();
+		int to = edge.getTo();
+
+		QPointF first =
+			tspMapToWindow(
+				nodes[from]->getLongitude(),
+				nodes[from]->getLatitude(),
+				ui->travelingSalesmanPage->width(),
+				ui->travelingSalesmanPage->height(),
+				m_tspZoom
+			);
+
+		QPointF second =
+			tspMapToWindow(
+				nodes[to]->getLongitude(),
+				nodes[to]->getLatitude(),
+				ui->travelingSalesmanPage->width(),
+				ui->travelingSalesmanPage->height(),
+				m_tspZoom
+			);
+
+		painter.drawLine(first, second);
+	}
+}
+
+void MainWindow::drawTravelingSalesmanProblem(
+	QPainter& painter
+)
+{
+	drawCompleteGraph(painter);
+
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	painter.setPen(
+		QPen(Qt::blue, 4)
+	);
+
+	for (int i = 0;
+		i < m_currentStep &&
+		i + 1 <
+		static_cast<int>(
+			m_travelingSalesmanProblem.size()
+			);
+		++i)
+	{
+		int from =
+			m_travelingSalesmanProblem[i];
+
+		int to =
+			m_travelingSalesmanProblem[i + 1];
+
+		QPointF first =
+			tspMapToWindow(
+				nodes[from]->getLongitude(),
+				nodes[from]->getLatitude(),
+				ui->travelingSalesmanPage->width(),
+				ui->travelingSalesmanPage->height(),
+				m_tspZoom
+			);
+
+		QPointF second =
+			tspMapToWindow(
+				nodes[to]->getLongitude(),
+				nodes[to]->getLatitude(),
+				ui->travelingSalesmanPage->width(),
+				ui->travelingSalesmanPage->height(),
+				m_tspZoom
+			);
+
+		painter.drawLine(first, second);
+	}
 }
 
 // Switch between oriented and non-oriented graph modes.
@@ -1746,6 +2302,388 @@ void MainWindow::on_clearPathsButton_clicked()
 	}
 
 	update();
+}
+
+void MainWindow::on_showInitialGraphButton_clicked()
+{
+	if (m_tspGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Initial Graph",
+			"The graph contains no nodes."
+		);
+
+		return;
+	}
+
+	m_stepTimerMST->stop();
+	m_stepTimerTSP->stop();
+
+	m_drawInitialGraph = true;
+	m_drawCompleteGraph = false;
+	m_drawMinimumSpanningTree = false;
+	m_drawTravellingSalesmanProblem = false;
+
+	ui->travelingSalesmanPage->update();
+
+	showInitialGraphDistances();
+}
+
+void MainWindow::on_showCompleteGraphButton_clicked()
+{
+	if (m_tspGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Complete Graph",
+			"The graph contains no nodes."
+		);
+
+		return;
+	}
+
+	m_stepTimerMST->stop();
+	m_stepTimerTSP->stop();
+
+	m_tspGraph.floydWarshall();
+	m_tspGraph.buildCompleteGraphFromDistances();
+
+	m_drawInitialGraph = false;
+	m_drawCompleteGraph = true;
+	m_drawMinimumSpanningTree = false;
+	m_drawTravellingSalesmanProblem = false;
+
+	ui->travelingSalesmanPage->update();
+
+	showCompleteGraphDistances();
+}
+
+void MainWindow::on_showMinimumSpanningTreeButton_clicked()
+{
+	if (m_tspGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Minimum Spanning Tree",
+			"The graph contains no nodes."
+		);
+
+		return;
+	}
+
+	if (!m_tspGraph.isConnected())
+	{
+		QMessageBox::warning(
+			this,
+			"Minimum Spanning Tree",
+			"The graph is not connected."
+		);
+
+		return;
+	}
+
+	m_stepTimerMST->stop();
+	m_stepTimerTSP->stop();
+
+	m_tspGraph.floydWarshall();
+	m_tspGraph.buildCompleteGraphFromDistances();
+
+	m_minimumSpanningTree =
+		m_tspGraph.kruskal();
+
+	m_currentStep = 0;
+	m_totalDistance = 0.0;
+
+	m_drawInitialGraph = false;
+	m_drawCompleteGraph = false;
+	m_drawMinimumSpanningTree = true;
+	m_drawTravellingSalesmanProblem = false;
+
+	if (m_fout.device() == nullptr)
+	{
+		m_file.setFileName("output.txt");
+
+		if (m_file.open(
+			QIODevice::WriteOnly |
+			QIODevice::Text))
+		{
+			m_fout.setDevice(&m_file);
+		}
+	}
+
+	if (m_fout.device() != nullptr)
+	{
+		m_fout
+			<< "Minimum Spanning Tree construction\n\n";
+	}
+
+	ui->travelingSalesmanPage->update();
+
+	onNextMstStep();
+}
+
+void MainWindow::onNextMstStep()
+{
+	if (m_currentStep >=
+		static_cast<int>(
+			m_minimumSpanningTree.size()
+			))
+	{
+		m_stepTimerMST->stop();
+
+		QMessageBox::information(
+			this,
+			"Minimum Spanning Tree",
+			QString(
+				"The minimum spanning tree has been generated successfully.\n\n"
+				"Total distance: %1 km"
+			).arg(m_totalDistance)
+		);
+
+		if (m_fout.device() != nullptr)
+		{
+			m_fout
+				<< "Minimum Spanning Tree completed.\n"
+				<< "Total distance: "
+				<< m_totalDistance
+				<< " km.\n\n";
+		}
+
+		return;
+	}
+
+	const Edge& edge =
+		m_minimumSpanningTree[m_currentStep];
+
+	int from = edge.getFrom();
+	int to = edge.getTo();
+
+	double distance =
+		m_tspGraph.getDistanceMatrix()[from][to];
+
+	m_totalDistance += distance;
+
+	++m_currentStep;
+
+	ui->travelingSalesmanPage->update();
+
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	QString message =
+		QString(
+			"Selected edge:\n"
+			"%1 - %2\n"
+			"Distance: %3 km\n\n"
+			"Accumulated cost: %4 km"
+		)
+		.arg(QString::fromStdString(
+			nodes[from]->getName()
+		))
+		.arg(QString::fromStdString(
+			nodes[to]->getName()
+		))
+		.arg(distance)
+		.arg(m_totalDistance);
+
+	if (m_fout.device() != nullptr)
+	{
+		m_fout
+			<< "Selected edge: "
+			<< QString::fromStdString(
+				nodes[from]->getName()
+			)
+			<< " - "
+			<< QString::fromStdString(
+				nodes[to]->getName()
+			)
+			<< " ("
+			<< distance
+			<< " km)\n";
+	}
+
+	QMessageBox::information(
+		this,
+		"Minimum Spanning Tree",
+		message
+	);
+
+	if (m_currentStep <
+		static_cast<int>(
+			m_minimumSpanningTree.size()
+			))
+	{
+		m_stepTimerMST->start(1200);
+	}
+	else
+	{
+		onNextMstStep();
+	}
+}
+
+void MainWindow::on_showTspCircuitButton_clicked()
+{
+	if (m_tspGraph.getNodes().empty())
+	{
+		QMessageBox::information(
+			this,
+			"Traveling Salesman Problem",
+			"The graph contains no nodes."
+		);
+
+		return;
+	}
+
+	if (!m_tspGraph.isConnected())
+	{
+		QMessageBox::warning(
+			this,
+			"Traveling Salesman Problem",
+			"The graph is not connected."
+		);
+
+		return;
+	}
+
+	m_stepTimerMST->stop();
+	m_stepTimerTSP->stop();
+
+	m_tspGraph.floydWarshall();
+	m_tspGraph.buildCompleteGraphFromDistances();
+
+	m_minimumSpanningTree =
+		m_tspGraph.kruskal();
+
+	m_travelingSalesmanProblem =
+		m_tspGraph.travelingSalesmanProblem(
+			m_minimumSpanningTree
+		);
+
+	m_currentStep = 0;
+	m_totalDistance = 0.0;
+
+	m_drawInitialGraph = false;
+	m_drawCompleteGraph = false;
+	m_drawMinimumSpanningTree = false;
+	m_drawTravellingSalesmanProblem = true;
+
+	if (m_fout.device() == nullptr)
+	{
+		m_file.setFileName("output.txt");
+
+		if (m_file.open(
+			QIODevice::WriteOnly |
+			QIODevice::Text))
+		{
+			m_fout.setDevice(&m_file);
+		}
+	}
+
+	if (m_fout.device() != nullptr)
+	{
+		m_fout
+			<< "Traveling Salesman Problem\n\n";
+	}
+
+	ui->travelingSalesmanPage->update();
+
+	onNextTspStep();
+}
+
+void MainWindow::onNextTspStep()
+{
+	if (m_currentStep + 1 >=
+		static_cast<int>(
+			m_travelingSalesmanProblem.size()
+			))
+	{
+		m_stepTimerTSP->stop();
+
+		QMessageBox::information(
+			this,
+			"Traveling Salesman Problem",
+			QString(
+				"The approximate TSP circuit has been generated successfully.\n\n"
+				"Total distance: %1 km"
+			).arg(m_totalDistance)
+		);
+
+		if (m_fout.device() != nullptr)
+		{
+			m_fout
+				<< "Traveling Salesman Problem completed.\n"
+				<< "Total distance: "
+				<< m_totalDistance
+				<< " km.\n\n";
+		}
+
+		return;
+	}
+
+	int from =
+		m_travelingSalesmanProblem[m_currentStep];
+
+	int to =
+		m_travelingSalesmanProblem[m_currentStep + 1];
+
+	double distance =
+		m_tspGraph.getDistanceMatrix()[from][to];
+
+	m_totalDistance += distance;
+
+	++m_currentStep;
+
+	ui->travelingSalesmanPage->update();
+
+	const auto nodes =
+		m_tspGraph.getNodes();
+
+	QString message =
+		QString(
+			"Next visited city:\n"
+			"%1\n\n"
+			"Distance: %2 km\n"
+			"Total distance: %3 km"
+		)
+		.arg(QString::fromStdString(
+			nodes[to]->getName()
+		))
+		.arg(distance)
+		.arg(m_totalDistance);
+
+	if (m_fout.device() != nullptr)
+	{
+		m_fout
+			<< "Next visited city: "
+			<< QString::fromStdString(
+				nodes[to]->getName()
+			)
+			<< "\nDistance: "
+			<< distance
+			<< " km\n"
+			<< "Total distance: "
+			<< m_totalDistance
+			<< " km\n\n";
+	}
+
+	QMessageBox::information(
+		this,
+		"Traveling Salesman Problem",
+		message
+	);
+
+	if (m_currentStep + 1 <
+		static_cast<int>(
+			m_travelingSalesmanProblem.size()
+			))
+	{
+		m_stepTimerTSP->start(1200);
+	}
+	else
+	{
+		onNextTspStep();
+	}
 }
 
 void MainWindow::on_showConnectedComponentsButton_clicked()

@@ -134,6 +134,56 @@
         </layout>
        </widget>
       </widget>
+      <widget class="QWidget" name="travelingSalesmanPage">
+       <widget class="QWidget" name="">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>10</y>
+          <width>289</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QPushButton" name="showInitialGraphButton">
+             <property name="text">
+              <string>Show Initial Graph</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="showCompleteGraphButton">
+             <property name="text">
+              <string>Show Complete Graph</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_5">
+           <item>
+            <widget class="QPushButton" name="showMinimumSpanningTreeButton">
+             <property name="text">
+              <string>Show Minimum Spanning Tree</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="showTspCircuitButton">
+             <property name="text">
+              <string>Show TSP Circuit</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </widget>
       <widget class="QWidget" name="mapPage"/>
       <widget class="QWidget" name="labyrinthPage">
        <widget class="QPushButton" name="openFileButton">
@@ -310,6 +360,7 @@
    <addaction name="actionWeighted_Graph"/>
    <addaction name="actionLabyrinth"/>
    <addaction name="actionMap"/>
+   <addaction name="actionTraveling_Salesman"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionGraph">
@@ -339,6 +390,14 @@
   <action name="actionMap">
    <property name="text">
     <string>Map</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionTraveling_Salesman">
+   <property name="text">
+    <string>Traveling Salesman</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

@@ -44,3 +44,4 @@ Makefile
 # Generated graph files
 GraphFramework/adjacencyMatrix.txt
 GraphFramework/graph.png
+GraphFramework/output.txt

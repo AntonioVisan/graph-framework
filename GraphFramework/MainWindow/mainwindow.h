@@ -1,19 +1,22 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QFile>
+#include <QFileDialog>
 #include <QMainWindow>
+#include <QMessageBox>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
-#include <QFileDialog>
-#include <QMessageBox>
+#include <QTextStream>
+#include <QTimer>
 #include <QWheelEvent>
 
 #include "../Graph/graph.h"
 #include "../KDTree/kdtree.h"
 
-#include <string>
 #include <limits>
+#include <string>
 
 using Matrix = std::vector<std::vector<int>>;
 
@@ -71,7 +74,14 @@ private slots:
 	void on_clearDrawingButton_clicked();
 	void on_clearPathsButton_clicked();
 
+	// Theme 6 - Traveling Salesman Problem
+	void on_showInitialGraphButton_clicked();
+	void on_showCompleteGraphButton_clicked();
+	void on_showMinimumSpanningTreeButton_clicked();
+	void on_showTspCircuitButton_clicked();
+
 private:
+	// Drawing
 	void drawGraphContent(QPainter& p);
 	void drawMap(QPainter& p);
 	void drawArrow(QPainter& painter, QPoint start, QPoint end);
@@ -85,12 +95,38 @@ private:
 		double zoom = 1.0
 	) const;
 
+	// Traveling Salesman Problem.
+	QPointF tspMapToWindow(
+		double longitude,
+		double latitude,
+		int width,
+		int height,
+		double zoom = 1.0
+	) const;
+
+	// Theme 6
+	void computeBoundingBox();
+
+	void showInitialGraphDistances();
+	void showCompleteGraphDistances();
+
+	void drawNodes(QPainter& painter);
+	void drawInitialGraph(QPainter& painter);
+	void drawCompleteGraph(QPainter& painter);
+	void drawMinimumSpanningTree(QPainter& painter);
+	void drawTravelingSalesmanProblem(QPainter& painter);
+
+	void onNextMstStep();
+	void onNextTspStep();
+
 	Ui::MainWindow* ui;
 
+	// Graphs
 	Graph m_manualGraph;
 	Graph m_weightedGraph;
 	Graph m_labyrinthGraph;
 	Graph m_mapGraph;
+	Graph m_tspGraph;
 
 	Node* m_firstNode = nullptr;
 	Node* m_pressedNode = nullptr;
@@ -105,7 +141,8 @@ private:
 	KDTree* m_tree = nullptr;
 	std::vector<KDNode> m_points;
 
-	double m_currentZoom = 1.0;
+	double m_mapZoom = 1.0;
+	double m_tspZoom = 1.0;
 
 	double m_minLatitude =
 		std::numeric_limits<double>::max();
@@ -119,28 +156,62 @@ private:
 	double m_maxLongitude =
 		std::numeric_limits<double>::lowest();
 
+	double m_tspMinLatitude =
+		std::numeric_limits<double>::max();
+
+	double m_tspMaxLatitude =
+		std::numeric_limits<double>::lowest();
+
+	double m_tspMinLongitude =
+		std::numeric_limits<double>::max();
+
+	double m_tspMaxLongitude =
+		std::numeric_limits<double>::lowest();
+
 	QPointF m_lastMousePosition;
 	bool m_isDragging = false;
 
 	double m_offsetX = 0.0;
 	double m_offsetY = 0.0;
 
+	// General drawing state
 	bool drawGraph = false;
 	bool drawLabyrinth = false;
 	bool m_showStronglyConnectedComponents = false;
+
+	// Theme 6 drawing state
+	bool m_drawInitialGraph = false;
+	bool m_drawCompleteGraph = false;
+	bool m_drawMinimumSpanningTree = false;
+	bool m_drawTravellingSalesmanProblem = false;
+
+	// Theme 6 - MST
+	QTimer* m_stepTimerMST = nullptr;
+	std::vector<Edge> m_minimumSpanningTree;
+
+	// Theme 6 - TSP
+	QTimer* m_stepTimerTSP = nullptr;
+	int m_currentStep = 0;
+	double m_totalDistance = 0.0;
+	std::vector<int> m_travelingSalesmanProblem;
 
 	enum class Page
 	{
 		Graph,
 		WeightedGraph,
 		Labyrinth,
-		Map
+		Map,
+		TravelingSalesman
 	};
 
 	Page m_currentPage = Page::Graph;
 
 	QString fileName;
 	Matrix mat;
+
+	// Theme 6 file output
+	QFile m_file;
+	QTextStream m_fout;
 };
 
 #endif
