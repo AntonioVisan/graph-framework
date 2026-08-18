@@ -44,3 +44,18 @@ double Edge::getCost() const
 {
     return m_cost;
 }
+
+int Edge::getFrom() const
+{
+    return m_first->getIndex();
+}
+
+int Edge::getTo() const
+{
+    return m_second->getIndex();
+}
+
+double Edge::getLength() const
+{
+    return m_cost;
+}

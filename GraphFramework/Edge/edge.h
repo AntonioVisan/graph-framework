@@ -20,6 +20,10 @@ public:
 	Node* getFirst() const;
 	Node* getSecond() const;
 	double getCost() const;
+
+	int getFrom() const;
+	int getTo() const;
+	double getLength() const;
 };
 
 #endif
