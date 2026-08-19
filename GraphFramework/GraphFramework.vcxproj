@@ -95,6 +95,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Edge\edge.cpp" />
+    <ClCompile Include="FlowEdge\flowedge.cpp" />
+    <ClCompile Include="FlowNetwork\flownetwork.cpp" />
     <ClCompile Include="Graph\graph.cpp" />
     <ClCompile Include="KDTree\kdtree.cpp" />
     <ClCompile Include="main.cpp" />
@@ -110,6 +112,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Edge\edge.h" />
+    <ClInclude Include="FlowEdge\flowedge.h" />
+    <ClInclude Include="FlowNetwork\flownetwork.h" />
     <ClInclude Include="Graph\graph.h" />
     <ClInclude Include="KDTree\kdtree.h" />
     <ClInclude Include="Node\node.h" />
