@@ -50,6 +50,9 @@
     <ClCompile Include="FlowNetwork\flownetwork.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="VirtualEdge\virtualedge.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="MainWindow\mainwindow.ui">
@@ -81,6 +84,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FlowNetwork\flownetwork.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VirtualEdge\virtualedge.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

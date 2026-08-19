@@ -103,6 +103,7 @@
     <ClCompile Include="MainWindow\mainwindow.cpp" />
     <ClCompile Include="Node\node.cpp" />
     <ClCompile Include="UnionFind\unionfind.cpp" />
+    <ClCompile Include="VirtualEdge\virtualedge.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="MainWindow\mainwindow.ui" />
@@ -118,6 +119,7 @@
     <ClInclude Include="KDTree\kdtree.h" />
     <ClInclude Include="Node\node.h" />
     <ClInclude Include="UnionFind\unionfind.h" />
+    <ClInclude Include="VirtualEdge\virtualedge.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
