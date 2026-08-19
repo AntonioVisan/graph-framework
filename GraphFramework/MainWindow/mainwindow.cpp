@@ -21,6 +21,8 @@ MainWindow::MainWindow(QWidget* parent)
 
 	ui->travelingSalesmanPage->installEventFilter(this);
 
+	ui->maximumFlowPage->installEventFilter(this);
+
 	m_weightedGraph.changeState();
 
 	// Load the map.
@@ -147,6 +149,22 @@ MainWindow::MainWindow(QWidget* parent)
 		}
 	);
 
+	connect(
+		ui->actionMaximum_Flow,
+		&QAction::triggered,
+		this,
+		[this]()
+		{
+			m_currentPage = Page::MaximumFlow;
+
+			ui->stackedWidget->setCurrentWidget(
+				ui->maximumFlowPage
+			);
+
+			update();
+		}
+	);
+
 	m_currentPage = Page::Graph;
 	ui->stackedWidget->setCurrentWidget(ui->graphPage);
 }
@@ -154,6 +172,13 @@ MainWindow::MainWindow(QWidget* parent)
 MainWindow::~MainWindow()
 {
 	delete m_tree;
+
+	for (auto edge : m_edges)
+		delete edge;
+
+	for (auto node : m_nodes)
+		delete node;
+
 	delete ui;
 }
 
@@ -338,7 +363,148 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 		}
 	}
 
+	// Maximum Flow page.
+	if (watched == ui->maximumFlowPage)
+	{
+		if (event->type() == QEvent::MouseButtonPress)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mousePressEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::MouseButtonRelease)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mouseReleaseEvent(mouseEvent);
+
+			return true;
+		}
+
+		if (event->type() == QEvent::MouseMove)
+		{
+			QMouseEvent* mouseEvent =
+				static_cast<QMouseEvent*>(event);
+
+			mouseMoveEvent(mouseEvent);
+
+			return true;
+		}
+	}
+
 	return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::keyPressEvent(QKeyEvent* event)
+{
+	if (m_currentPage != Page::MaximumFlow)
+		return;
+
+	if (event->key() != Qt::Key_Return)
+		return;
+
+	if (m_flowNetwork.getAdjacencyList().empty())
+	{
+		QMessageBox::critical(
+			this,
+			"Network does not exist",
+			"There are no nodes in the network. Add nodes first."
+		);
+
+		return;
+	}
+
+	if (m_algorithmFinished)
+	{
+		QMessageBox::information(
+			this,
+			"Algorithm already executed",
+			"The algorithm has finished. Reset the network to start again."
+		);
+
+		return;
+	}
+
+	if (!m_source && !m_target)
+	{
+		QMessageBox::critical(
+			this,
+			"Source and target not selected",
+			"Error: Neither the source nor the target node has been selected."
+		);
+
+		return;
+	}
+
+	if (!m_source)
+	{
+		QMessageBox::critical(
+			this,
+			"Source node not selected",
+			"Error: The source node has not been selected."
+		);
+
+		return;
+	}
+
+	if (!m_target)
+	{
+		QMessageBox::critical(
+			this,
+			"Target node not selected",
+			"Error: The target node has not been selected."
+		);
+
+		return;
+	}
+
+	bool stepExecuted =
+		m_flowNetwork.Step(
+			m_source->getIndex(),
+			m_target->getIndex()
+		);
+
+	if (!stepExecuted)
+	{
+		m_algorithmFinished = true;
+
+		QMessageBox::information(
+			this,
+			"Ford-Fulkerson algorithm",
+			"No more augmenting paths exist. "
+			"The minimum cut will now be displayed."
+		);
+
+		drawMinCut(m_source);
+
+		QMessageBox::information(
+			this,
+			"Minimum cut",
+			"The minimum cut has been generated. "
+			"The cut edges are displayed in orange."
+		);
+	}
+	else
+	{
+		update();
+
+		QString message =
+			"Current flow: " +
+			QString::number(
+				m_flowNetwork.GetCurrentFlow()
+			);
+
+		QMessageBox::information(
+			this,
+			"Current Ford-Fulkerson step",
+			message
+		);
+	}
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent* m)
@@ -352,10 +518,196 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 		return;
 	}
 
+	// Traveling Salesman page.
 	if (m_currentPage == Page::TravelingSalesman)
 	{
 		if (m->button() == Qt::RightButton)
 			m_isDragging = false;
+
+		return;
+	}
+
+	// Maximum Flow page.
+	if (m_currentPage == Page::MaximumFlow)
+	{
+		if (m_pressedNode)
+			m_pressedNode = nullptr;
+
+		QPoint mousePos =
+			ui->maximumFlowPage->mapTo(this, m->pos());
+
+		if (m->button() == Qt::RightButton)
+		{
+			bool overlap = false;
+
+			for (auto* node : m_nodes)
+			{
+				if (
+					abs(mousePos.x() - node->getX()) < 20 &&
+					abs(mousePos.y() - node->getY()) < 20
+					)
+				{
+					overlap = true;
+					break;
+				}
+			}
+
+			if (!overlap)
+			{
+				int index =
+					static_cast<int>(m_nodes.size());
+
+				AddNode(index, mousePos);
+				update();
+			}
+		}
+		else if (m->button() == Qt::LeftButton)
+		{
+			Node* selected = nullptr;
+
+			for (auto* node : m_nodes)
+			{
+				if (
+					abs(mousePos.x() - node->getX()) < 20 &&
+					abs(mousePos.y() - node->getY()) < 20
+					)
+				{
+					selected = node;
+					break;
+				}
+			}
+
+			if (selected == nullptr)
+				return;
+
+			// Select source node.
+			if (m_selectSource)
+			{
+				if (m_source)
+					m_source->setColor(QColor());
+
+				m_source = selected;
+				m_source->setColor(Qt::green);
+
+				QString message =
+					QString(
+						"Source node with ID %1 "
+						"has been selected."
+					).arg(m_source->getIndex() + 1);
+
+				QMessageBox::information(
+					this,
+					"Source Node Selected",
+					message
+				);
+
+				m_selectSource = false;
+				update();
+
+				return;
+			}
+
+			// Select target node.
+			if (m_selectTarget)
+			{
+				if (m_target)
+					m_target->setColor(QColor());
+
+				m_target = selected;
+				m_target->setColor(Qt::red);
+
+				QString message =
+					QString(
+						"Target node with ID %1 "
+						"has been selected."
+					).arg(m_target->getIndex() + 1);
+
+				QMessageBox::information(
+					this,
+					"Target Node Selected",
+					message
+				);
+
+				m_selectTarget = false;
+				update();
+
+				return;
+			}
+
+			// Create a flow edge.
+			if (
+				m_firstNode != nullptr &&
+				m_firstNode != selected
+				)
+			{
+				int from =
+					m_firstNode->getIndex();
+
+				int to =
+					selected->getIndex();
+
+				bool alreadyExists = false;
+
+				const auto& adjacencyList =
+					m_flowNetwork.getAdjacencyList();
+
+				for (const auto& edge :
+					adjacencyList[from])
+				{
+					if (
+						edge.GetTo() == to &&
+						edge.GetCapacity() > 0
+						)
+					{
+						alreadyExists = true;
+						break;
+					}
+				}
+
+				if (!alreadyExists)
+				{
+					bool ok;
+
+					int capacity =
+						QInputDialog::getInt(
+							this,
+							"Edge Capacity",
+							"Enter the edge capacity:",
+							1,
+							1,
+							1000,
+							1,
+							&ok
+						);
+
+					if (ok)
+					{
+						int edgeIndex =
+							m_flowNetwork.AddEdge(
+								from,
+								to,
+								capacity
+							);
+
+						m_edges.push_back(
+							new VirtualEdge(
+								m_firstNode,
+								selected,
+								from,
+								edgeIndex
+							)
+						);
+					}
+				}
+
+				m_firstNode = nullptr;
+				update();
+			}
+			else
+			{
+				m_firstNode = selected;
+			}
+		}
 
 		return;
 	}
@@ -498,7 +850,7 @@ void MainWindow::paintEvent(QPaintEvent*)
 {
 	QPainter p(this);
 
-	//Draw the weighted graph on the Weighted Graph page.
+	// Draw the weighted graph on the Weighted Graph page.
 	if (m_currentPage == Page::WeightedGraph)
 	{
 		std::vector<Node*> nodes = m_weightedGraph.getNodes();
@@ -532,6 +884,116 @@ void MainWindow::paintEvent(QPaintEvent*)
 
 			p.drawLine(firstNode, secondNode);
 			drawArrow(p, firstNode, secondNode);
+		}
+
+		return;
+	}
+
+	// Draw the flow network on the Maximum Flow page.
+	if (m_currentPage == Page::MaximumFlow)
+	{
+		const int nodeRadius = 18;
+
+		p.setRenderHint(QPainter::Antialiasing);
+
+		// Draw flow edges.
+		for (auto* edge : m_edges)
+		{
+			Node* from = edge->GetFrom();
+			Node* to = edge->GetTo();
+
+			const FlowEdge& realEdge =
+				m_flowNetwork.getAdjacencyList()
+				[edge->GetFromNodeIndex()]
+				[edge->GetEdgeIndex()];
+
+			QPen pen(Qt::black, 1);
+
+			if (edge->GetColor().isValid())
+			{
+				pen.setColor(edge->GetColor());
+			}
+			else
+			{
+				bool highlighted = false;
+
+				for (const auto& [currentNodeIndex, edgeIndex] :
+					m_flowNetwork.getLastPath())
+				{
+					if (
+						edge->GetFromNodeIndex() == currentNodeIndex &&
+						edge->GetEdgeIndex() == edgeIndex
+						)
+					{
+						highlighted = true;
+						break;
+					}
+				}
+
+				if (highlighted)
+					pen.setColor(Qt::blue);
+			}
+
+			p.setPen(pen);
+
+			QPoint firstNode = from->getCoord();
+			QPoint secondNode = to->getCoord();
+
+			p.drawLine(firstNode, secondNode);
+
+			drawArrow(
+				p,
+				firstNode,
+				secondNode,
+				nodeRadius
+			);
+
+			QString label =
+				QString("%1 / %2")
+				.arg(realEdge.GetFlow())
+				.arg(realEdge.GetCapacity());
+
+			QPoint middle =
+				(firstNode + secondNode) / 2;
+
+			p.drawText(
+				middle + QPoint(8, -10),
+				label
+			);
+		}
+
+		// Draw flow network nodes.
+		for (auto* node : m_nodes)
+		{
+			QRect r(
+				node->getX() - nodeRadius,
+				node->getY() - nodeRadius,
+				2 * nodeRadius,
+				2 * nodeRadius
+			);
+
+			QString nodeIndex =
+				QString::number(node->getIndex() + 1);
+
+			if (node->getColor().isValid())
+				p.setBrush(node->getColor());
+			else
+				p.setBrush(Qt::NoBrush);
+
+			p.setPen(QPen(Qt::black, 2));
+
+			p.drawEllipse(r);
+
+			QFont font = p.font();
+			font.setPointSize(10);
+			font.setBold(true);
+			p.setFont(font);
+
+			p.drawText(
+				r,
+				Qt::AlignCenter,
+				nodeIndex
+			);
 		}
 
 		return;
@@ -653,6 +1115,7 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 		return;
 	}
 
+	// Traveling Salesman page.
 	if (m_currentPage == Page::TravelingSalesman)
 	{
 		if (m_isDragging)
@@ -667,6 +1130,62 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 				m->position();
 
 			ui->travelingSalesmanPage->update();
+		}
+
+		return;
+	}
+
+	// Maximum Flow page.
+	if (m_currentPage == Page::MaximumFlow)
+	{
+		if (!m_pressedNode)
+			return;
+
+		QPoint mousePos =
+			ui->maximumFlowPage->mapTo(this, m->pos());
+
+		const int margin = 10;
+		const int nodeRadius = 18;
+
+		int newX = mousePos.x();
+		int newY = mousePos.y();
+
+		if (newX < nodeRadius + margin)
+			newX = nodeRadius + margin;
+
+		if (newX > width() - nodeRadius - margin)
+			newX = width() - nodeRadius - margin;
+
+		if (newY < nodeRadius + margin)
+			newY = nodeRadius + margin;
+
+		if (newY > height() - nodeRadius - margin)
+			newY = height() - nodeRadius - margin;
+
+		bool overlap = false;
+
+		for (const auto* node : m_nodes)
+		{
+			if (node == m_pressedNode)
+				continue;
+
+			if (
+				abs(newX - node->getX()) < 20 &&
+				abs(newY - node->getY()) < 20
+				)
+			{
+				overlap = true;
+				break;
+			}
+		}
+
+		if (!overlap)
+		{
+			m_pressedNode->setCoord(
+				QPoint(newX, newY)
+			);
+
+			update();
 		}
 
 		return;
@@ -870,6 +1389,7 @@ void MainWindow::mousePressEvent(QMouseEvent* m)
 		return;
 	}
 
+	//Traveling Salesman page.
 	if (m_currentPage == Page::TravelingSalesman)
 	{
 		if (m->button() == Qt::RightButton)
@@ -881,6 +1401,31 @@ void MainWindow::mousePressEvent(QMouseEvent* m)
 		return;
 	}
 
+	// Maximum Flow page.
+	if (m_currentPage == Page::MaximumFlow)
+	{
+		QPoint mousePos =
+			ui->maximumFlowPage->mapTo(this, m->pos());
+
+		if (m->button() == Qt::MiddleButton)
+		{
+			for (auto* node : m_nodes)
+			{
+				if (
+					abs(mousePos.x() - node->getX()) < 20 &&
+					abs(mousePos.y() - node->getY()) < 20
+					)
+				{
+					m_pressedNode = node;
+					break;
+				}
+			}
+		}
+
+		return;
+	}
+
+	//Weighted Graph page.
 	if (m_currentPage == Page::WeightedGraph)
 	{
 		if (m->button() == Qt::MiddleButton)
@@ -1288,6 +1833,81 @@ void MainWindow::drawArrow(QPainter& p, QPoint start, QPoint end)
 
 	p.setBrush(Qt::red);
 	p.drawPolygon(arrowHead);
+}
+
+void MainWindow::drawArrow(
+	QPainter& painter,
+	QPoint start,
+	QPoint end,
+	double nodeRadius
+)
+{
+	const double arrowLength = 14.0;
+	const double arrowWidth = 10.0;
+
+	QPointF direction = end - start;
+
+	double length =
+		std::sqrt(
+			direction.x() * direction.x() +
+			direction.y() * direction.y()
+		);
+
+	if (length == 0)
+		return;
+
+	QPointF unit = direction / length;
+
+	QPointF arrowTip =
+		end - unit * nodeRadius;
+
+	QPointF perpendicular(
+		-unit.y(),
+		unit.x()
+	);
+
+	QPointF arrowPoint1 =
+		arrowTip -
+		unit * arrowLength +
+		perpendicular * (arrowWidth / 2.0);
+
+	QPointF arrowPoint2 =
+		arrowTip -
+		unit * arrowLength -
+		perpendicular * (arrowWidth / 2.0);
+
+	QPolygonF arrowHead;
+
+	arrowHead
+		<< arrowTip
+		<< arrowPoint1
+		<< arrowPoint2;
+
+	painter.setBrush(Qt::black);
+	painter.drawPolygon(arrowHead);
+}
+
+void MainWindow::drawMinCut(Node* source)
+{
+	std::vector<bool> visited =
+		m_flowNetwork.MinCut(source->getIndex());
+
+	for (auto* edge : m_edges)
+	{
+		int from =
+			edge->GetFrom()->getIndex();
+
+		int to =
+			edge->GetTo()->getIndex();
+
+		// Draw minimum cut edges in orange.
+		if (visited[from] && !visited[to])
+			edge->SetColor(QColor(255, 77, 0));
+		else
+			edge->SetColor(Qt::black);
+	}
+
+	update();
 }
 
 QPointF MainWindow::mapToWindow(
@@ -2591,6 +3211,209 @@ void MainWindow::on_showTspCircuitButton_clicked()
 	onNextTspStep();
 }
 
+void MainWindow::on_runMaximumFlowButton_clicked()
+{
+	if (m_currentPage != Page::MaximumFlow)
+		return;
+
+	if (m_flowNetwork.getAdjacencyList().empty())
+	{
+		QMessageBox::critical(
+			this,
+			"Network does not exist",
+			"There are no nodes in the network. Add nodes first."
+		);
+
+		return;
+	}
+
+	if (m_algorithmFinished)
+	{
+		QMessageBox::information(
+			this,
+			"Algorithm already executed",
+			"The algorithm has finished. Reset the network to start again."
+		);
+
+		return;
+	}
+
+	if (!m_source && !m_target)
+	{
+		QMessageBox::critical(
+			this,
+			"Source and target not selected",
+			"Error: Neither the source nor the target node has been selected."
+		);
+
+		return;
+	}
+
+	if (!m_source)
+	{
+		QMessageBox::critical(
+			this,
+			"Source node not selected",
+			"Error: The source node has not been selected."
+		);
+
+		return;
+	}
+
+	if (!m_target)
+	{
+		QMessageBox::critical(
+			this,
+			"Target node not selected",
+			"Error: The target node has not been selected."
+		);
+
+		return;
+	}
+
+	m_flowNetwork.Initialize();
+
+	int maxFlow =
+		m_flowNetwork.FordFulkerson(
+			m_source->getIndex(),
+			m_target->getIndex()
+		);
+
+	m_algorithmFinished = true;
+
+	update();
+
+	QString message =
+		"Ford-Fulkerson algorithm executed successfully.\n"
+		"Maximum flow: " +
+		QString::number(maxFlow);
+
+	QMessageBox::information(
+		this,
+		"Maximum flow",
+		message
+	);
+
+	drawMinCut(m_source);
+
+	update();
+
+	QMessageBox::information(
+		this,
+		"Minimum cut",
+		"The minimum cut has been generated. "
+		"The cut edges are displayed in orange."
+	);
+}
+
+void MainWindow::on_selectSourceButton_clicked()
+{
+	if (m_currentPage != Page::MaximumFlow)
+		return;
+
+	if (m_flowNetwork.getAdjacencyList().empty())
+	{
+		QMessageBox::critical(
+			this,
+			"Network does not exist",
+			"There are no nodes in the network. Add nodes first."
+		);
+
+		return;
+	}
+
+	if (m_algorithmFinished)
+	{
+		QMessageBox::information(
+			this,
+			"Algorithm already executed",
+			"The algorithm has finished. Reset the network to select a new source node."
+		);
+
+		return;
+	}
+
+	QMessageBox::information(
+		this,
+		"Select source node",
+		"Select a source node from the network."
+	);
+
+	m_selectSource = true;
+	m_selectTarget = false;
+}
+
+void MainWindow::on_selectTargetButton_clicked()
+{
+	if (m_currentPage != Page::MaximumFlow)
+		return;
+
+	if (m_flowNetwork.getAdjacencyList().empty())
+	{
+		QMessageBox::critical(
+			this,
+			"Network does not exist",
+			"There are no nodes in the network. Add nodes first."
+		);
+
+		return;
+	}
+
+	if (m_algorithmFinished)
+	{
+		QMessageBox::information(
+			this,
+			"Algorithm already executed",
+			"The algorithm has finished. Reset the network to select a new target node."
+		);
+
+		return;
+	}
+
+	QMessageBox::information(
+		this,
+		"Select target node",
+		"Select a target node from the network."
+	);
+
+	m_selectTarget = true;
+	m_selectSource = false;
+}
+
+void MainWindow::on_resetNetworkButton_clicked()
+{
+	if (m_currentPage != Page::MaximumFlow)
+		return;
+
+	if (m_flowNetwork.getAdjacencyList().empty())
+	{
+		QMessageBox::critical(
+			this,
+			"Network does not exist",
+			"There are no nodes in the network. Add nodes first."
+		);
+
+		return;
+	}
+
+	m_algorithmFinished = false;
+
+	m_flowNetwork.Initialize();
+
+	m_source = nullptr;
+	m_target = nullptr;
+
+	m_firstNode = nullptr;
+
+	m_selectSource = false;
+	m_selectTarget = false;
+
+	ResetNodeColors();
+	ResetEdgeColors();
+
+	update();
+}
+
 void MainWindow::onNextTspStep()
 {
 	if (m_currentStep + 1 >=
@@ -2684,6 +3507,24 @@ void MainWindow::onNextTspStep()
 	{
 		onNextTspStep();
 	}
+}
+
+void MainWindow::AddNode(int index, QPoint point)
+{
+	m_nodes.push_back(new Node(index, point));
+	m_flowNetwork.AddNode();
+}
+
+void MainWindow::ResetNodeColors()
+{
+	for (auto node : m_nodes)
+		node->setColor(QColor());
+}
+
+void MainWindow::ResetEdgeColors()
+{
+	for (auto edge : m_edges)
+		edge->SetColor(QColor());
 }
 
 void MainWindow::on_showConnectedComponentsButton_clicked()

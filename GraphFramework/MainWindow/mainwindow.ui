@@ -134,8 +134,58 @@
         </layout>
        </widget>
       </widget>
-      <widget class="QWidget" name="travelingSalesmanPage">
+      <widget class="QWidget" name="maximumFlowPage">
        <widget class="QWidget" name="">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>221</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_4">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_6">
+           <item>
+            <widget class="QPushButton" name="selectSourceButton">
+             <property name="text">
+              <string>Select Source</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="selectTargetButton">
+             <property name="text">
+              <string>Select Target</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_7">
+           <item>
+            <widget class="QPushButton" name="runMaximumFlowButton">
+             <property name="text">
+              <string>Run Maximum Flow</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="resetNetworkButton">
+             <property name="text">
+              <string>Reset Network</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="travelingSalesmanPage">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>10</x>
@@ -361,6 +411,7 @@
    <addaction name="actionLabyrinth"/>
    <addaction name="actionMap"/>
    <addaction name="actionTraveling_Salesman"/>
+   <addaction name="actionMaximum_Flow"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionGraph">
@@ -398,6 +449,14 @@
   <action name="actionTraveling_Salesman">
    <property name="text">
     <string>Traveling Salesman</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionMaximum_Flow">
+   <property name="text">
+    <string>Maximum Flow</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

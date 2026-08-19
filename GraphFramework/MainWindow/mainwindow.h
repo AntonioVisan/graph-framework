@@ -3,6 +3,7 @@
 
 #include <QFile>
 #include <QFileDialog>
+#include <QKeyEvent>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QMouseEvent>
@@ -12,16 +13,21 @@
 #include <QTimer>
 #include <QWheelEvent>
 
-#include "../Graph/graph.h"
-#include "../KDTree/kdtree.h"
-
 #include <limits>
 #include <string>
+#include <vector>
+
+#include "../Graph/graph.h"
+#include "../KDTree/kdtree.h"
+#include "../FlowNetwork/flownetwork.h"
+#include "../VirtualEdge/virtualedge.h"
+#include "../Node/node.h"
 
 using Matrix = std::vector<std::vector<int>>;
 
 QT_BEGIN_NAMESPACE
-namespace Ui {
+namespace Ui 
+{
 	class MainWindow;
 }
 QT_END_NAMESPACE
@@ -32,6 +38,8 @@ class MainWindow : public QMainWindow
 
 protected:
 	bool eventFilter(QObject* watched, QEvent* event) override;
+
+	void keyPressEvent(QKeyEvent* event) override;
 
 public:
 	MainWindow(QWidget* parent = nullptr);
@@ -80,11 +88,32 @@ private slots:
 	void on_showMinimumSpanningTreeButton_clicked();
 	void on_showTspCircuitButton_clicked();
 
+	// Theme 7 - Maximum Flow
+	void on_runMaximumFlowButton_clicked();
+	void on_resetNetworkButton_clicked();
+	void on_selectSourceButton_clicked();
+	void on_selectTargetButton_clicked();
+
 private:
 	// Drawing
 	void drawGraphContent(QPainter& p);
 	void drawMap(QPainter& p);
-	void drawArrow(QPainter& painter, QPoint start, QPoint end);
+	
+	void drawArrow(
+		QPainter& painter,
+		QPoint start,
+		QPoint end
+	);
+
+	// Theme 7 - Flow Network drawing
+	void drawArrow(
+		QPainter& painter,
+		QPoint start,
+		QPoint end,
+		double nodeRadius
+	);
+
+	void drawMinCut(Node* source);
 
 	// Map.
 	QPointF mapToWindow(
@@ -119,6 +148,12 @@ private:
 	void onNextMstStep();
 	void onNextTspStep();
 
+	// Theme 7 - Maximum Flow
+	void AddNode(int index, QPoint point);
+	void ResetNodeColors();
+	void ResetEdgeColors();
+
+private:
 	Ui::MainWindow* ui;
 
 	// Graphs
@@ -195,13 +230,26 @@ private:
 	double m_totalDistance = 0.0;
 	std::vector<int> m_travelingSalesmanProblem;
 
+	// Theme 7 - Maximum Flow
+	FlowNetwork m_flowNetwork{ 0 };
+	std::vector<Node*> m_nodes;
+	std::vector<VirtualEdge*> m_edges;
+
+	Node* m_source = nullptr;
+	Node* m_target = nullptr;
+
+	bool m_algorithmFinished = false;
+	bool m_selectSource = false;
+	bool m_selectTarget = false;
+
 	enum class Page
 	{
 		Graph,
 		WeightedGraph,
 		Labyrinth,
 		Map,
-		TravelingSalesman
+		TravelingSalesman,
+		MaximumFlow
 	};
 
 	Page m_currentPage = Page::Graph;
