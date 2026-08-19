@@ -13,8 +13,7 @@ MainWindow::MainWindow(QWidget* parent)
 {
 	ui->setupUi(this);
 
-	// drawingArea is used by the Graph page.
-	ui->drawingArea->installEventFilter(this);
+	ui->graphPage->installEventFilter(this);
 
 	// mapPage itself is used as the drawing surface for the Map page.
 	ui->mapPage->installEventFilter(this);
@@ -103,7 +102,7 @@ MainWindow::MainWindow(QWidget* parent)
 
 			ui->stackedWidget->setCurrentWidget(ui->graphPage);
 
-			ui->drawingArea->update();
+			update();
 		});
 
 	connect(ui->actionWeighted_Graph, &QAction::triggered, this, [this]()
@@ -184,8 +183,8 @@ MainWindow::~MainWindow()
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
-	// Graph drawing area.
-	if (watched == ui->drawingArea)
+	// Graph page.
+	if (watched == ui->graphPage)
 	{
 		if (event->type() == QEvent::MouseButtonPress)
 		{
@@ -193,7 +192,6 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 				static_cast<QMouseEvent*>(event);
 
 			mousePressEvent(mouseEvent);
-
 			return true;
 		}
 
@@ -203,7 +201,6 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 				static_cast<QMouseEvent*>(event);
 
 			mouseReleaseEvent(mouseEvent);
-
 			return true;
 		}
 
@@ -213,17 +210,6 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 				static_cast<QMouseEvent*>(event);
 
 			mouseMoveEvent(mouseEvent);
-
-			return true;
-		}
-
-		if (event->type() == QEvent::Paint)
-		{
-			QPainter painter(ui->drawingArea);
-
-			if (m_currentPage == Page::Graph)
-				drawGraphContent(painter);
-
 			return true;
 		}
 	}
@@ -809,7 +795,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 		if (!overlap)
 		{
 			m_manualGraph.addNode(QPoint(mouseX, mouseY));
-			ui->drawingArea->update();
+			update();
 		}
 	}
 
@@ -836,7 +822,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 			{
 				m_manualGraph.addEdge(m_firstNode, selected);
 				m_firstNode = nullptr;
-				ui->drawingArea->update();
+				update();
 			}
 			else
 			{
@@ -849,6 +835,21 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* m)
 void MainWindow::paintEvent(QPaintEvent*)
 {
 	QPainter p(this);
+
+	if (m_currentPage == Page::Graph)
+	{
+		QPoint graphPosition =
+			ui->graphPage->mapTo(this, QPoint(0, 0));
+
+		p.save();
+		p.translate(graphPosition);
+
+		drawGraphContent(p);
+
+		p.restore();
+
+		return;
+	}
 
 	// Draw the weighted graph on the Weighted Graph page.
 	if (m_currentPage == Page::WeightedGraph)
@@ -1259,16 +1260,16 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 		if (mouseX < nodeRadius + margin)
 			mouseX = nodeRadius + margin;
 
-		if (mouseX > ui->drawingArea->width() - nodeRadius - margin)
-			mouseX = ui->drawingArea->width() - nodeRadius - margin;
+		if (mouseX > ui->graphPage->width() - nodeRadius - margin)
+			mouseX = ui->graphPage->width() - nodeRadius - margin;
 
 		if (mouseY < nodeRadius + margin)
 			mouseY = nodeRadius + margin;
 
-		if (mouseY > ui->drawingArea->height() - nodeRadius - margin)
-			mouseY = ui->drawingArea->height() - nodeRadius - margin;
+		if (mouseY > ui->graphPage->height() - nodeRadius - margin)
+			mouseY = ui->graphPage->height() - nodeRadius - margin;
 
-		// Mouse coordinates are already relative to drawingArea.
+		// Mouse coordinates are already relative to graphPage.
 		int newX = mouseX;
 		int newY = mouseY;
 
@@ -1292,7 +1293,7 @@ void MainWindow::mouseMoveEvent(QMouseEvent* m)
 		if (!overlap)
 		{
 			m_pressedNode->setCoord(QPoint(newX, newY));
-			ui->drawingArea->update();
+			update();
 		}
 	}
 }
@@ -1488,13 +1489,13 @@ void MainWindow::drawGraphContent(QPainter& p)
 		std::vector<QPoint> componentPositions;
 		std::vector<int> componentRadii;
 
-		const int centerX = ui->drawingArea->width() / 2;
-		const int centerY = ui->drawingArea->height() / 2;
+		const int centerX = ui->graphPage->width() / 2;
+		const int centerY = ui->graphPage->height() / 2;
 
 		const int radius =
 			std::min(
-				ui->drawingArea->width(),
-				ui->drawingArea->height()
+				ui->graphPage->width(),
+				ui->graphPage->height()
 			) / 3;
 
 		const int componentCount =
@@ -3575,7 +3576,7 @@ void MainWindow::on_showConnectedComponentsButton_clicked()
 		)
 	);
 
-	ui->drawingArea->update();
+	update();
 }
 
 void MainWindow::on_resetColorsButton_clicked()
@@ -3604,7 +3605,7 @@ void MainWindow::on_resetColorsButton_clicked()
 
 	m_manualGraph.resetNodeColors();
 
-	ui->drawingArea->update();
+	update();
 }
 
 void MainWindow::on_showStronglyConnectedComponentsButton_clicked()
@@ -3662,7 +3663,7 @@ void MainWindow::on_showStronglyConnectedComponentsButton_clicked()
 		)
 	);
 
-	ui->drawingArea->update();
+	update();
 }
 
 void MainWindow::on_showAdjacencyListButton_clicked()
@@ -3785,5 +3786,5 @@ void MainWindow::on_restoreInitialGraphButton_clicked()
 
 	m_manualGraph.resetNodeColors();
 
-	ui->drawingArea->update();
+	update();
 }
